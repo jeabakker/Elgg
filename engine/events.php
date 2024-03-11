@@ -110,6 +110,9 @@ return [
 			'Elgg\Users\Validation::notifyAdminsAboutPendingUsers' => [],
 			\Elgg\Users\CleanupPersistentLoginHandler::class => [],
 		],
+		'hourly' => [
+			\Elgg\Entity\RemoveDeletedEntitiesHandler::class => [],
+		],
 		'minute' => [
 			\Elgg\Notifications\ProcessQueueCronHandler::class => ['priority' => 100],
 		],
@@ -268,6 +271,8 @@ return [
 		'menu:entity' => [
 			'Elgg\Menus\Entity::registerDelete' => [],
 			'Elgg\Menus\Entity::registerEdit' => [],
+			'Elgg\Menus\Entity::registerTrash' => ['priority' => 501], // needs to be after registerDelete
+			'Elgg\Menus\Entity::registerRestore' => [],
 			'Elgg\Menus\Entity::registerUserHoverAdminSection' => [],
 			'Elgg\Menus\UserHover::registerLoginAs' => [],
 		],

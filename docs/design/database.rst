@@ -700,6 +700,10 @@ It contains the following fields:
 -  **enabled** If this is 'yes' an entity is accessible, if 'no' the entity
    has been disabled (Elgg treats it as if it were deleted without actually
    removing it from the database)
+-  **deleted** If this is 'yes' an entity is marked for deletion,
+   if 'no' (default) the entity is visible within the regular site.
+   If the bin plugin is enabled, soft deleted content is stored in the Temporary Bin.
+-  **time\_deleted** Unix timestamp of when the entity was soft deleted.
 
 Table: metadata
 ~~~~~~~~~~~~~~~

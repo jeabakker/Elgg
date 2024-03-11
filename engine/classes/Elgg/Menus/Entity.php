@@ -31,7 +31,11 @@ class Entity {
 		$return = $event->getValue();
 		
 		if ($return->get('edit')) {
-			// a menu item for editting already exists
+			// a menu item for editing already exists
+			return;
+		}
+
+		if ($entity->deleted === 'yes') {
 			return;
 		}
 		
@@ -72,27 +76,123 @@ class Entity {
 			// upgrades deleting has no point, they'll be rediscovered again
 			return;
 		}
-		
-		$delete_url = elgg_generate_action_url('entity/delete', [
-			'guid' => $entity->guid,
-		]);
-		
-		if (empty($delete_url) || !$entity->canDelete()) {
+
+		if (!$entity->canDelete()) {
 			return;
 		}
 		
 		/* @var $return MenuItems */
 		$return = $event->getValue();
-		
+
 		$return[] = \ElggMenuItem::factory([
 			'name' => 'delete',
 			'icon' => 'delete',
 			'text' => elgg_echo('delete'),
 			'title' => elgg_echo('delete:this'),
-			'href' => $delete_url,
+			'href' => elgg_generate_action_url('entity/delete', [
+				'guid' => $entity->guid,
+			]),
 			'confirm' => elgg_echo('deleteconfirm'),
 			'priority' => 950,
 		]);
+		
+		return $return;
+	}
+	
+	/**
+	 * Register the trash menu item
+	 *
+	 * @param \Elgg\Event $event 'register', 'menu:entity'
+	 *
+	 * @return null|MenuItems
+	 */
+	public static function registerTrash(\Elgg\Event $event): ?MenuItems {
+		if (!elgg_get_config('trash_enabled')) {
+			return null;
+		}
+		
+		$entity = $event->getEntityParam();
+		if (!$entity instanceof \ElggEntity || $entity instanceof \ElggUser || $entity instanceof \ElggPlugin || $entity instanceof \ElggUpgrade) {
+			// users mostly use the hover menu for their actions
+			// plugins can't be removed
+			// upgrades deleting has no point, they'll be rediscovered again
+			return null;
+		}
+		
+		if ($entity->deleted !== 'no' || !$entity->canDelete() || !$entity->hasCapability('restorable')) {
+			return null;
+		}
+		
+		/* @var $return MenuItems */
+		$return = $event->getValue();
+
+		// replace the delete menu item with the trash action
+		$return->remove('delete');
+		
+		$return[] = \ElggMenuItem::factory([
+			'name' => 'trash',
+			'icon' => 'trash-alt',
+			'text' => elgg_echo('trash'),
+			'title' => elgg_echo('trash:this'),
+			'href' => elgg_generate_action_url('entity/trash', [
+				'guid' => $entity->guid,
+			]),
+			'confirm' => elgg_echo('trashconfirm'),
+			'priority' => 950,
+		]);
+		
+		return $return;
+	}
+	
+	/**
+	 * Register the restore menu item
+	 *
+	 * @param \Elgg\Event $event 'register', 'menu:entity'
+	 *
+	 * @return null|MenuItems
+	 */
+	public static function registerRestore(\Elgg\Event $event): ?MenuItems {
+		if (!elgg_get_config('trash_enabled')) {
+			return null;
+		}
+		
+		$entity = $event->getEntityParam();
+		if ($entity->deleted !== 'yes' || !$entity->canEdit() || !$entity->hasCapability('restorable')) {
+			return null;
+		}
+		
+		/* @var $return MenuItems */
+		$return = $event->getValue();
+		
+		$container = elgg_call(ELGG_SHOW_DISABLED_ENTITIES | ELGG_SHOW_DELETED_ENTITIES, function() use ($entity) {
+			return $entity->getContainerEntity();
+		});
+		if (!$container instanceof \ElggEntity || ($container instanceof \ElggGroup && $container->deleted === 'yes')) {
+			$return[] = \ElggMenuItem::factory([
+				'name' => 'restore_and_move',
+				'icon' => 'trash-restore-alt',
+				'text' => elgg_echo('restore:this:move'),
+				'title' => elgg_echo('restore:this'),
+				'href' => elgg_http_add_url_query_elements('ajax/form/entity/chooserestoredestination', [
+					'entity_guid' => $entity->guid,
+				]),
+				'link_class' => 'elgg-lightbox',
+				'priority' => 800,
+			]);
+		}
+		
+		if ($container?->deleted !== 'yes') {
+			$return[] = \ElggMenuItem::factory([
+				'name' => 'restore',
+				'icon' => 'trash-restore-alt',
+				'text' => elgg_echo('restore:this'),
+				'href' => elgg_generate_action_url('entity/restore', [
+					'guid' => $entity->guid,
+				]),
+				'confirm' => elgg_echo('restoreconfirm'),
+				'priority' => 900,
+			]);
+		}
 		
 		return $return;
 	}
