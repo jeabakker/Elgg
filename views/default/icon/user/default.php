@@ -46,7 +46,6 @@ if ($user->isBanned()) {
 $icon = elgg_view('output/img', [
 	'src' => $user->getIconURL($size),
 	'alt' => $name,
-	'title' => $name,
 	'class' => elgg_extract_class($vars, [], 'img_class'),
 ]);
 
@@ -63,18 +62,19 @@ if ($show_menu) {
 	
 	$wrapper_class[] = 'elgg-avatar-menu';
 	
-	elgg_require_js('icon/user/default');
+	elgg_import_esm('icon/user/default');
 }
 
 if (elgg_extract('use_link', $vars, true)) {
 	$content .= elgg_view('output/url', [
 		'href' => elgg_extract('href', $vars, $user->getURL()),
 		'text' => $icon,
+		'title' => $name,
 		'is_trusted' => true,
 		'class' => elgg_extract_class($vars, [], 'link_class'),
 	]);
 } else {
-	$content .= elgg_format_element('a', [], $icon);
+	$content .= $icon;
 }
 
 echo elgg_format_element('div', ['class' => $wrapper_class], $content);

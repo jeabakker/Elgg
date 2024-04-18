@@ -17,17 +17,14 @@ class SessionHandler implements \SessionHandlerInterface {
 	/**
 	 * @var string name of the users sessions database table
 	 */
-	const TABLE_NAME = 'users_sessions';
-
-	protected Database $db;
+	public const TABLE_NAME = 'users_sessions';
 
 	/**
 	 * Constructor
 	 *
 	 * @param Database $db The database
 	 */
-	public function __construct(Database $db) {
-		$this->db = $db;
+	public function __construct(protected Database $db) {
 	}
 
 	/**

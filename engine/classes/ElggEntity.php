@@ -1,11 +1,11 @@
 <?php
 
-use Elgg\EntityIcon;
 use Elgg\Database\QueryBuilder;
 use Elgg\Exceptions\DatabaseException;
 use Elgg\Exceptions\Filesystem\IOException;
 use Elgg\Exceptions\DomainException as ElggDomainException;
 use Elgg\Exceptions\InvalidArgumentException as ElggInvalidArgumentException;
+use Elgg\Traits\Entity\Icons;
 use Elgg\Traits\Entity\Subscriptions;
 
 /**
@@ -38,13 +38,16 @@ use Elgg\Traits\Entity\Subscriptions;
  * @property       int    $time_created   A UNIX timestamp of when the entity was created
  * @property-read  int    $time_updated   A UNIX timestamp of when the entity was last updated (automatically updated on save)
  * @property-read  int    $last_action    A UNIX timestamp of when the entity was last acted upon
+ * @property-read  int    $time_deleted   A UNIX timestamp of when the entity was deleted
+ * @property-read  string $deleted        Is this entity deleted ('yes' or 'no')
  * @property-read  string $enabled        Is this entity enabled ('yes' or 'no')
  *
  * Metadata (the above are attributes)
  * @property       string $location       A location of the entity
  */
-abstract class ElggEntity extends \ElggData implements EntityIcon {
+abstract class ElggEntity extends \ElggData {
 
+	use Icons;
 	use Subscriptions;
 	
 	public const PRIMARY_ATTR_NAMES = [
@@ -58,6 +61,8 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		'time_updated',
 		'last_action',
 		'enabled',
+		'deleted',
+		'time_deleted',
 	];
 
 	/**
@@ -71,6 +76,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		'time_created',
 		'time_updated',
 		'last_action',
+		'time_deleted',
 	];
 
 	/**
@@ -89,7 +95,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 
 	/**
 	 * Volatile data structure for this object, allows for storage of data
-	 * in-memory that isn't sync'd back to the metadata table.
+	 * in-memory that isn't synced back to the metadata table.
 	 * @var array
 	 */
 	protected $volatile = [];
@@ -160,6 +166,8 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		$this->attributes['time_updated'] = null;
 		$this->attributes['last_action'] = null;
 		$this->attributes['enabled'] = 'yes';
+		$this->attributes['deleted'] = 'no';
+		$this->attributes['time_deleted'] = null;
 	}
 
 	/**
@@ -200,7 +208,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 				$metadata_names[] = $metadata->name;
 			}
 			
-			// arrays are stored with multiple enties per name
+			// arrays are stored with multiple entries per name
 			$metadata_names = array_unique($metadata_names);
 
 			// move the metadata over
@@ -248,6 +256,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 			switch ($name) {
 				case 'guid':
 				case 'last_action':
+				case 'time_deleted':
 				case 'time_updated':
 				case 'type':
 					return;
@@ -255,6 +264,8 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 					throw new ElggInvalidArgumentException(elgg_echo('ElggEntity:Error:SetSubtype', ['setSubtype()']));
 				case 'enabled':
 					throw new ElggInvalidArgumentException(elgg_echo('ElggEntity:Error:SetEnabled', ['enable() / disable()']));
+				case 'deleted':
+					throw new ElggInvalidArgumentException(elgg_echo('ElggEntity:Error:SetDeleted', ['delete() / restore()']));
 				case 'access_id':
 				case 'owner_guid':
 				case 'container_guid':
@@ -294,6 +305,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * $name key.
 	 *
 	 * @param string $name Name of the attribute or metadata
+	 *
 	 * @return mixed
 	 */
 	public function __get($name) {
@@ -317,6 +329,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * Sets the title or name of this entity.
 	 *
 	 * @param string $display_name The title or name of this entity.
+	 *
 	 * @return void
 	 */
 	public function setDisplayName(string $display_name): void {
@@ -646,6 +659,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * @warning Calling this with no or empty arguments will clear all annotations on the entity.
 	 *
 	 * @param string $name An optional name of annotations to remove.
+	 *
 	 * @return bool
 	 * @since 1.8
 	 */
@@ -672,6 +686,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * If you pass a name, only annotations matching that name will be deleted.
 	 *
 	 * @param string $name An optional name of annotations to delete.
+	 *
 	 * @return bool
 	 * @since 1.8
 	 */
@@ -688,40 +703,11 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	}
 
 	/**
-	 * Disables annotations for this entity, optionally based on name.
-	 *
-	 * @param string $name An optional name of annotations to disable.
-	 * @return bool
-	 * @since 1.8
-	 */
-	public function disableAnnotations(string $name = null): bool {
-		return elgg_disable_annotations([
-			'guid' => $this->guid,
-			'limit' => false,
-			'annotation_name' => $name,
-		]);
-	}
-
-	/**
-	 * Enables annotations for this entity, optionally based on name.
-	 *
-	 * @param string $name An optional name of annotations to enable.
-	 * @return bool
-	 * @since 1.8
-	 */
-	public function enableAnnotations(string $name = null) {
-		return elgg_enable_annotations([
-			'guid' => $this->guid,
-			'limit' => false,
-			'annotation_name' => $name,
-		]);
-	}
-
-	/**
 	 * Helper function to return annotation calculation results
 	 *
 	 * @param string $name        The annotation name.
 	 * @param string $calculation A valid MySQL function to run its values through
+	 *
 	 * @return mixed
 	 */
 	private function getAnnotationCalculation($name, $calculation) {
@@ -1133,102 +1119,6 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	}
 
 	/**
-	 * Saves icons using an uploaded file as the source.
-	 *
-	 * @param string $input_name Form input name
-	 * @param string $type       The name of the icon. e.g., 'icon', 'cover_photo'
-	 * @param array  $coords     An array of cropping coordinates x1, y1, x2, y2
-	 * @return bool
-	 */
-	public function saveIconFromUploadedFile(string $input_name, string $type = 'icon', array $coords = []): bool {
-		return _elgg_services()->iconService->saveIconFromUploadedFile($this, $input_name, $type, $coords);
-	}
-
-	/**
-	 * Saves icons using a local file as the source.
-	 *
-	 * @param string $filename The full path to the local file
-	 * @param string $type     The name of the icon. e.g., 'icon', 'cover_photo'
-	 * @param array  $coords   An array of cropping coordinates x1, y1, x2, y2
-	 * @return bool
-	 */
-	public function saveIconFromLocalFile(string $filename, string $type = 'icon', array $coords = []): bool {
-		return _elgg_services()->iconService->saveIconFromLocalFile($this, $filename, $type, $coords);
-	}
-
-	/**
-	 * Saves icons using a file located in the data store as the source.
-	 *
-	 * @param string $file   An ElggFile instance
-	 * @param string $type   The name of the icon. e.g., 'icon', 'cover_photo'
-	 * @param array  $coords An array of cropping coordinates x1, y1, x2, y2
-	 * @return bool
-	 */
-	public function saveIconFromElggFile(\ElggFile $file, string $type = 'icon', array $coords = []): bool {
-		return _elgg_services()->iconService->saveIconFromElggFile($this, $file, $type, $coords);
-	}
-
-	/**
-	 * Returns entity icon as an ElggIcon object
-	 * The icon file may or may not exist on filestore
-	 *
-	 * @param string $size Size of the icon
-	 * @param string $type The name of the icon. e.g., 'icon', 'cover_photo'
-	 * @return \ElggIcon
-	 */
-	public function getIcon(string $size, string $type = 'icon'): \ElggIcon {
-		return _elgg_services()->iconService->getIcon($this, $size, $type);
-	}
-
-	/**
-	 * Removes all icon files and metadata for the passed type of icon.
-	 *
-	 * @param string $type The name of the icon. e.g., 'icon', 'cover_photo'
-	 * @return bool
-	 */
-	public function deleteIcon(string $type = 'icon'): bool {
-		return _elgg_services()->iconService->deleteIcon($this, $type);
-	}
-
-	/**
-	 * Returns the timestamp of when the icon was changed.
-	 *
-	 * @param string $size The size of the icon
-	 * @param string $type The name of the icon. e.g., 'icon', 'cover_photo'
-	 *
-	 * @return int|null A unix timestamp of when the icon was last changed, or null if not set.
-	 */
-	public function getIconLastChange(string $size, string $type = 'icon'): ?int {
-		return _elgg_services()->iconService->getIconLastChange($this, $size, $type);
-	}
-
-	/**
-	 * Returns if the entity has an icon of the passed type.
-	 *
-	 * @param string $size The size of the icon
-	 * @param string $type The name of the icon. e.g., 'icon', 'cover_photo'
-	 * @return bool
-	 */
-	public function hasIcon(string $size, string $type = 'icon'): bool {
-		return _elgg_services()->iconService->hasIcon($this, $size, $type);
-	}
-
-	/**
-	 * Get the URL for this entity's icon
-	 *
-	 * Plugins can register for the 'entity:icon:url', '<type>' event
-	 * to customize the icon for an entity.
-	 *
-	 * @param mixed $params A string defining the size of the icon (e.g. tiny, small, medium, large)
-	 *                      or an array of parameters including 'size'
-	 * @return string The URL
-	 * @since 1.8.0
-	 */
-	public function getIconURL(string|array $params = []): string {
-		return _elgg_services()->iconService->getIconURL($this, $params);
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	public function save(): bool {
@@ -1251,10 +1141,10 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * Saves the base information in the entities table for the entity.  Saving
 	 * the type-specific information is handled in the calling class method.
 	 *
-	 * @return int|false The new entity's GUID or false on failure
+	 * @return int|false The new entity's GUID or false if prevented by an event handler
 	 *
 	 * @throws \Elgg\Exceptions\DomainException If the entity's type has not been set.
-	 * @throws \Elgg\Exceptions\InvalidArgumentException If the entity's subtype has not been set or access_id is invalid
+	 * @throws \Elgg\Exceptions\InvalidArgumentException If the entity's subtype has not been set, access_id is invalid or something is wrong with the owner or container
 	 * @throws \Elgg\Exceptions\Filesystem\IOException If the new row fails to write to the DB.
 	 */
 	protected function create() {
@@ -1273,6 +1163,8 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		$access_id = (int) $this->attributes['access_id'];
 		$now = $this->getCurrentTime()->getTimestamp();
 		$time_created = isset($this->attributes['time_created']) ? (int) $this->attributes['time_created'] : $now;
+		$deleted = $this->attributes['deleted'];
+		$time_deleted = (int) $this->attributes['time_deleted'];
 
 		$container_guid = $this->attributes['container_guid'];
 		if ($container_guid == 0) {
@@ -1282,11 +1174,11 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		
 		$container_guid = (int) $container_guid;
 
-		if ($access_id == ACCESS_DEFAULT) {
+		if ($access_id === ACCESS_DEFAULT) {
 			throw new ElggInvalidArgumentException('ACCESS_DEFAULT is not a valid access level. See its documentation in constants.php');
 		}
 		
-		if ($access_id == ACCESS_FRIENDS) {
+		if ($access_id === ACCESS_FRIENDS) {
 			throw new ElggInvalidArgumentException('ACCESS_FRIENDS is not a valid access level. See its documentation in constants.php');
 		}
 
@@ -1298,16 +1190,14 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 			if (!$owner instanceof \ElggEntity) {
 				$error = "User {$user_guid} tried to create a ({$type}, {$subtype}),";
 				$error .= " but the given owner {$owner_guid} could not be loaded.";
-				_elgg_services()->logger->error($error);
-				return false;
+				throw new ElggInvalidArgumentException($error);
 			}
 
 			// If different owner than logged in, verify can write to container.
 			if ($user_guid !== $owner_guid && !$owner->canEdit() && !$owner->canWriteToContainer($user_guid, $type, $subtype)) {
 				$error = "User {$user_guid} tried to create a ({$type}, {$subtype}) with owner {$owner_guid},";
 				$error .= " but the user wasn't permitted to write to the owner's container.";
-				_elgg_services()->logger->error($error);
-				return false;
+				throw new ElggInvalidArgumentException($error);
 			}
 		}
 
@@ -1317,15 +1207,13 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 			if (!$container instanceof \ElggEntity) {
 				$error = "User {$user_guid} tried to create a ({$type}, {$subtype}),";
 				$error .= " but the given container {$container_guid} could not be loaded.";
-				_elgg_services()->logger->error($error);
-				return false;
+				throw new ElggInvalidArgumentException($error);
 			}
 
 			if (!$container->canWriteToContainer($user_guid, $type, $subtype)) {
 				$error = "User {$user_guid} tried to create a ({$type}, {$subtype}),";
 				$error .= " but was not permitted to write to container {$container_guid}.";
-				_elgg_services()->logger->error($error);
-				return false;
+				throw new ElggInvalidArgumentException($error);
 			}
 		}
 		
@@ -1343,6 +1231,8 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 			'time_created' => $time_created,
 			'time_updated' => $now,
 			'last_action' => $now,
+			'deleted' => $deleted,
+			'time_deleted' => $time_deleted
 		], $this->attributes);
 
 		if (!$guid) {
@@ -1355,6 +1245,8 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		$this->attributes['time_updated'] = (int) $now;
 		$this->attributes['last_action'] = (int) $now;
 		$this->attributes['container_guid'] = (int) $container_guid;
+		$this->attributes['deleted'] = $deleted;
+		$this->attributes['time_deleted'] = (int) $time_deleted;
 
 		// We are writing this new entity to cache to make sure subsequent calls
 		// to get_entity() load the entity from cache and not from the DB. This
@@ -1420,11 +1312,13 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		$container_guid = (int) $this->container_guid;
 		$time_created = (int) $this->time_created;
 		$time = $this->getCurrentTime()->getTimestamp();
+		$deleted = $this->deleted;
+		$time_deleted = (int) $this->time_deleted;
 
 		if ($access_id == ACCESS_DEFAULT) {
 			throw new ElggInvalidArgumentException('ACCESS_DEFAULT is not a valid access level. See its documentation in constants.php');
 		}
-	
+		
 		if ($access_id == ACCESS_FRIENDS) {
 			throw new ElggInvalidArgumentException('ACCESS_FRIENDS is not a valid access level. See its documentation in constants.php');
 		}
@@ -1437,6 +1331,8 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 			'time_created' => $time_created,
 			'time_updated' => $time,
 			'guid' => $guid,
+			'deleted' => $deleted,
+			'time_deleted' => $time_deleted
 		]);
 		if ($ret === false) {
 			return false;
@@ -1520,7 +1416,8 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 
 		if ($this instanceof ElggUser && !$this->isBanned()) {
 			// temporarily ban to prevent using the site during disable
-			$this->ban();
+			// not using ban function to bypass events
+			$this->setMetadata('banned', 'yes');
 			$unban_after = true;
 		} else {
 			$unban_after = false;
@@ -1533,7 +1430,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		$guid = (int) $this->guid;
 
 		if ($recursive) {
-			elgg_call(ELGG_IGNORE_ACCESS | ELGG_HIDE_DISABLED_ENTITIES, function () use ($guid, $reason) {
+			elgg_call(ELGG_IGNORE_ACCESS | ELGG_HIDE_DISABLED_ENTITIES | ELGG_SHOW_DELETED_ENTITIES, function () use ($guid, $reason) {
 				$base_options = [
 					'wheres' => [
 						function(QueryBuilder $qb, $main_alias) use ($guid) {
@@ -1563,12 +1460,10 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 			});
 		}
 
-		$this->disableAnnotations();
-
 		$disabled = _elgg_services()->entityTable->disable($this);
 
 		if ($unban_after) {
-			$this->unban();
+			$this->setMetadata('banned', 'no');
 		}
 
 		if ($disabled) {
@@ -1585,7 +1480,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * Enable the entity
 	 *
 	 * @param bool $recursive Recursively enable all entities disabled with the entity?
-	 * @see access_show_hiden_entities()
+	 *
 	 * @return bool
 	 */
 	public function enable(bool $recursive = true): bool {
@@ -1601,11 +1496,10 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 			return false;
 		}
 
-		$result = elgg_call(ELGG_IGNORE_ACCESS | ELGG_SHOW_DISABLED_ENTITIES, function() use ($recursive) {
+		$result = elgg_call(ELGG_IGNORE_ACCESS | ELGG_SHOW_DISABLED_ENTITIES | ELGG_SHOW_DELETED_ENTITIES, function() use ($recursive) {
 			$result = _elgg_services()->entityTable->enable($this);
-				
+			
 			$this->deleteMetadata('disable_reason');
-			$this->enableAnnotations();
 
 			if ($recursive) {
 				$disabled_with_it = elgg_get_entities([
@@ -1655,31 +1549,136 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * the entity.  That means that if the container_guid = $this->guid, the item will
 	 * be deleted regardless of who owns it.
 	 *
-	 * @param bool $recursive If true (default) then all entities which are
-	 *                        owned or contained by $this will also be deleted.
+	 * @param bool      $recursive  If true (default) then all entities which are owned or contained by $this will also be deleted.
+	 * @param bool|null $persistent persistently delete the entity (default: check the 'restorable' capability)
 	 *
 	 * @return bool
 	 */
-	public function delete(bool $recursive = true): bool {
-		// first check if we can delete this entity
-		// NOTE: in Elgg <= 1.10.3 this was after the delete event,
-		// which could potentially remove some content if the user didn't have access
+	public function delete(bool $recursive = true, bool $persistent = null): bool {
 		if (!$this->canDelete()) {
 			return false;
 		}
 
+		if (!elgg_get_config('trash_enabled')) {
+			$persistent = true;
+		}
+		
+		if (!isset($persistent)) {
+			$persistent = !$this->hasCapability('restorable');
+		}
+		
 		try {
-			return _elgg_services()->entityTable->delete($this, $recursive);
+			if (empty($this->guid) || $persistent) {
+				return $this->persistentDelete($recursive);
+			} else {
+				return $this->trash($recursive);
+			}
 		} catch (DatabaseException $ex) {
 			elgg_log($ex, 'ERROR');
 			return false;
 		}
 	}
-
+	
+	/**
+	 * Permanently delete the entity from the database
+	 *
+	 * @param bool $recursive If true (default) then all entities which are owned or contained by $this will also be deleted.
+	 *
+	 * @return bool
+	 * @since 6.0
+	 */
+	protected function persistentDelete(bool $recursive = true): bool {
+		return _elgg_services()->entityTable->delete($this, $recursive);
+	}
+	
+	/**
+	 * Move the entity to the trash
+	 *
+	 * @param bool $recursive If true (default) then all entities which are owned or contained by $this will also be trashed.
+	 *
+	 * @return bool
+	 * @since 6.0
+	 */
+	protected function trash(bool $recursive = true): bool {
+		$result = _elgg_services()->entityTable->trash($this, $recursive);
+		if ($result) {
+			$this->attributes['deleted'] = 'yes';
+		}
+		
+		return $result;
+	}
+	
+	/**
+	 * Restore the entity
+	 *
+	 * @param bool $recursive Recursively restores all entities trashed with the entity?
+	 *
+	 * @return bool
+	 * @since 6.0
+	 */
+	public function restore(bool $recursive = true): bool {
+		if (!$this->isDeleted()) {
+			return true;
+		}
+		
+		if (empty($this->guid) || !$this->canEdit()) {
+			return false;
+		}
+		
+		return _elgg_services()->events->triggerSequence('restore', $this->type, $this, function () use ($recursive) {
+			return elgg_call(ELGG_IGNORE_ACCESS | ELGG_SHOW_DISABLED_ENTITIES | ELGG_SHOW_DELETED_ENTITIES, function() use ($recursive) {
+				$result = _elgg_services()->entityTable->restore($this);
+				
+				if ($recursive) {
+					set_time_limit(0);
+					
+					/* @var $deleted_with_it \ElggBatch */
+					$deleted_with_it = elgg_get_entities([
+						'relationship' => 'deleted_with',
+						'relationship_guid' => $this->guid,
+						'inverse_relationship' => true,
+						'limit' => false,
+						'batch' => true,
+						'batch_inc_offset' => false,
+					]);
+					
+					/* @var $e \ElggEntity */
+					foreach ($deleted_with_it as $e) {
+						if (!$e->restore($recursive)) {
+							$deleted_with_it->reportFailure();
+							continue;
+						}
+						
+						$e->removeRelationship($this->guid, 'deleted_with');
+					}
+				}
+				
+				$this->removeAllRelationships('deleted_by', true);
+				
+				if ($result) {
+					$this->attributes['deleted'] = 'no';
+					$this->attributes['time_deleted'] = 0;
+				}
+				
+				return $result;
+			});
+		});
+	}
+	
+	/**
+	 * Is the entity marked as deleted
+	 *
+	 * @return bool
+	 */
+	public function isDeleted(): bool {
+		return $this->deleted === 'yes';
+	}
+	
 	/**
 	 * Export an entity
 	 *
 	 * @param array $params Params to pass to the event
+	 *
 	 * @return \Elgg\Export\Entity
 	 */
 	public function toObject(array $params = []) {
@@ -1694,6 +1693,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * Prepare an object copy for toObject()
 	 *
 	 * @param \Elgg\Export\Entity $object Object representation of the entity
+	 *
 	 * @return \Elgg\Export\Entity
 	 */
 	protected function prepareObject(\Elgg\Export\Entity $object) {
@@ -1764,41 +1764,6 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	}
 
 	/**
-	 * Returns tags for this entity.
-	 *
-	 * @param array $tag_names Optionally restrict by tag metadata names. Defaults to metadata with the name 'tags'.
-	 *
-	 * @return array
-	 */
-	public function getTags($tag_names = null) {
-		if (!isset($tag_names)) {
-			$tag_names = ['tags'];
-		}
-		
-		if ($tag_names && !is_array($tag_names)) {
-			$tag_names = [$tag_names];
-		}
-
-		$entity_tags = [];
-		foreach ($tag_names as $tag_name) {
-			$tags = $this->$tag_name;
-			if (elgg_is_empty($tags)) {
-				continue;
-			}
-			
-			// if a single tag, metadata returns a string.
-			// if multiple tags, metadata returns an array.
-			if (is_array($tags)) {
-				$entity_tags = array_merge($entity_tags, $tags);
-			} else {
-				$entity_tags[] = $tags;
-			}
-		}
-
-		return $entity_tags;
-	}
-
-	/**
 	 * Remove the membership of all access collections for this entity (if the entity is a user)
 	 *
 	 * @return bool
@@ -1861,6 +1826,7 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	 * while last_action is only set when explicitly called.
 	 *
 	 * @param int $posted Timestamp of last action
+	 *
 	 * @return int
 	 * @internal
 	 */
@@ -1869,8 +1835,25 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 		
 		$this->attributes['last_action'] = $posted;
 		$this->cache();
-	
+		
 		return $posted;
+	}
+
+	/**
+	 * Update the time_deleted column in the entities table.
+	 *
+	 * @param int $deleted Timestamp of deletion
+	 *
+	 * @return int
+	 * @internal
+	 */
+	public function updateTimeDeleted(int $deleted = null): int {
+		$deleted = _elgg_services()->entityTable->updateTimeDeleted($this, $deleted);
+		
+		$this->attributes['time_deleted'] = $deleted;
+		$this->cache();
+		
+		return $deleted;
 	}
 
 	/**
@@ -1915,32 +1898,17 @@ abstract class ElggEntity extends \ElggData implements EntityIcon {
 	}
 
 	/**
-	 * Cache the entity in a session and persisted caches
-	 *
-	 * @param bool $persist Store in persistent cache
+	 * Cache the entity in a session cache
 	 *
 	 * @return void
 	 * @internal
 	 */
-	public function cache(bool $persist = true): void {
+	public function cache(): void {
 		if (!$this->isCacheable()) {
 			return;
 		}
 
 		_elgg_services()->entityCache->save($this);
-
-		if (!$persist) {
-			return;
-		}
-		
-		$tmp = $this->volatile;
-
-		// don't store volatile data
-		$this->volatile = [];
-
-		_elgg_services()->sessionCache->entities->save($this->guid, $this);
-
-		$this->volatile = $tmp;
 	}
 
 	/**

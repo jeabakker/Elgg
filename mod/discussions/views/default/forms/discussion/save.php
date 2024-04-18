@@ -33,7 +33,7 @@ if (!$container_entity instanceof \ElggGroup) {
 	}
 	
 	if (count($options_values) > 1) {
-		elgg_require_js('forms/discussion/save');
+		elgg_import_esm('forms/discussion/save');
 		echo elgg_view_field([
 			'#type' => 'select',
 			'#label' => elgg_echo('discussion:topic:container'),
@@ -111,6 +111,6 @@ echo elgg_view_field([
 
 $footer = elgg_view_field([
 	'#type' => 'submit',
-	'value' => elgg_echo('save'),
+	'text' => elgg_echo('save'),
 ]);
 elgg_set_form_footer($footer);

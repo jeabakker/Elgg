@@ -7,15 +7,16 @@
 /* ***************************************
 	Form Elements
 *************************************** */
-fieldset > div, .elgg-field {
-	margin-bottom: 1rem;
+.elgg-form-body,
+.elgg-form-body > div,
+.elgg-form-body fieldset > div,
+.elgg-field {
+	&:not(:last-child) {
+		margin-bottom: 1rem;
+	}
 }
 
-fieldset > div:last-child {
-	margin-bottom: 0;
-}
-
-.elgg-form-alt > fieldset > .elgg-foot {
+.elgg-form-alt > .elgg-form-footer {
 	border-top: 1px solid $(border-color-soft);
 	padding: 10px 0;
 }
@@ -191,7 +192,7 @@ select:not([multiple]) {
 	.elgg-fieldset-horizontal {
 		display: flex;
 		
-		.elgg-field {
+		> .elgg-field {
 			margin: 0 1rem 0 0;
 			vertical-align: top;
 			
@@ -199,7 +200,8 @@ select:not([multiple]) {
 			flex-direction: column;
 			
 			&.elgg-field-stretch {
-				flex-basis: 100%;
+				flex-basis: 1%;
+				flex-grow: 1;
 				
 				> .elgg-field-input {
 					width: 100%;
@@ -220,12 +222,16 @@ select:not([multiple]) {
 				display: flex;
 				flex-shrink: 0;
 			}
+			
+			&:last-child {
+				margin-right: 0;
+			}
 		}
 		
 		&.elgg-fieldset-wrap {
 			flex-wrap: wrap;
 			
-			.elgg-field {
+			> .elgg-field {
 				margin-bottom: 0.5rem;
 			}
 		}
@@ -233,7 +239,7 @@ select:not([multiple]) {
 		&.elgg-justify-right {
 			justify-content: flex-end;
 			
-			.elgg-field {
+			> .elgg-field {
 				margin: 0 0 0 1rem;
 			}
 		}
@@ -241,7 +247,7 @@ select:not([multiple]) {
 		&.elgg-justify-center {
 			justify-content: center;
 		
-			.elgg-field {
+			> .elgg-field {
 				margin: 0 5px;
 			}
 		}
@@ -250,6 +256,6 @@ select:not([multiple]) {
 
 <?php
 echo elgg_view('elements/components/autocomplete.css', $vars);
-echo elgg_view('elements/components/userpicker.css', $vars);
 echo elgg_view('elements/components/datepicker.css', $vars);
+echo elgg_view('input/entitypicker.css', $vars);
 echo elgg_view('input/tags.css', $vars);

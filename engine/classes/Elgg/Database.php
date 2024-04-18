@@ -3,12 +3,13 @@
 namespace Elgg;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Driver\Exception\NoIdentityValue;
 use Doctrine\DBAL\DriverManager;
-use Doctrine\DBAL\Driver\ServerInfoAwareConnection;
+use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Result;
-use Doctrine\DBAL\Query\QueryBuilder;
 use Elgg\Cache\QueryCache;
 use Elgg\Database\DbConfig;
+use Elgg\Database\QueryBuilder;
 use Elgg\Exceptions\DatabaseException;
 use Elgg\Exceptions\RuntimeException;
 use Elgg\Traits\Debug\Profilable;
@@ -38,19 +39,12 @@ class Database {
 	/**
 	 * @var Connection[]
 	 */
-	private $connections = [];
+	private array $connections = [];
 
 	/**
 	 * @var int $query_count The number of queries made
 	 */
-	private $query_count = 0;
-
-	/**
-	 * Query cache for select queries.
-	 *
-	 * @var \Elgg\Cache\QueryCache $query_cache The cache
-	 */
-	protected $query_cache;
+	private int $query_count = 0;
 
 	/**
 	 * Queries are saved as an array with the DELAYED_* constants as keys.
@@ -64,18 +58,17 @@ class Database {
 	/**
 	 * @var \Elgg\Database\DbConfig $config Database configuration
 	 */
-	private $config;
+	private $db_config;
 
 	/**
 	 * Constructor
 	 *
-	 * @param DbConfig   $config      DB configuration
+	 * @param DbConfig   $db_config   DB configuration
 	 * @param QueryCache $query_cache Query Cache
+	 * @param Config     $config      Elgg config
 	 */
-	public function __construct(DbConfig $config, QueryCache $query_cache) {
-		$this->query_cache = $query_cache;
-		
-		$this->resetConnections($config);
+	public function __construct(DbConfig $db_config, protected QueryCache $query_cache, protected Config $config) {
+		$this->resetConnections($db_config);
 	}
 
 	/**
@@ -88,7 +81,7 @@ class Database {
 	public function resetConnections(DbConfig $config) {
 		$this->closeConnections();
 		
-		$this->config = $config;
+		$this->db_config = $config;
 		$this->table_prefix = $config->getTablePrefix();
 		$this->query_cache->enable();
 		$this->query_cache->clear();
@@ -138,7 +131,7 @@ class Database {
 	 * @return void
 	 */
 	public function setupConnections(): void {
-		if ($this->config->isDatabaseSplit()) {
+		if ($this->db_config->isDatabaseSplit()) {
 			$this->connect('read');
 			$this->connect('write');
 		} else {
@@ -157,7 +150,7 @@ class Database {
 	 * @throws DatabaseException
 	 */
 	public function connect(string $type = 'readwrite'): void {
-		$conf = $this->config->getConnectionConfig($type);
+		$conf = $this->db_config->getConnectionConfig($type);
 
 		$params = [
 			'dbname' => $conf['database'],
@@ -243,7 +236,16 @@ class Database {
 		$this->query_cache->clear();
 
 		$this->executeQuery($query);
-		return (int) $query->getConnection()->lastInsertId();
+		
+		try {
+			return (int) $query->getConnection()->lastInsertId();
+		} catch (DriverException $e) {
+			if ($e->getPrevious() instanceof NoIdentityValue) {
+				return 0;
+			}
+			
+			throw $e;
+		}
 	}
 
 	/**
@@ -256,7 +258,7 @@ class Database {
 	 *
 	 * @return bool|int
 	 */
-	public function updateData(QueryBuilder $query, bool $get_num_rows = false) {
+	public function updateData(QueryBuilder $query, bool $get_num_rows = false): bool|int {
 		$params = $query->getParameters();
 		$sql = $query->getSQL();
 	
@@ -269,7 +271,7 @@ class Database {
 			return true;
 		}
 
-		return ($result instanceof Result) ? $result->rowCount() : $result;
+		return ($result instanceof Result) ? (int) $result->rowCount() : $result;
 	}
 
 	/**
@@ -290,7 +292,7 @@ class Database {
 		$this->query_cache->clear();
 
 		$result = $this->executeQuery($query);
-		return ($result instanceof Result) ? $result->rowCount() : $result;
+		return ($result instanceof Result) ? (int) $result->rowCount() : $result;
 	}
 
 	/**
@@ -465,6 +467,24 @@ class Database {
 	 * @return void
 	 */
 	public function registerDelayedQuery(QueryBuilder $query, $callback = null): void {
+		if (Application::isCli() && !$this->config->testing_mode) {
+			// during CLI execute delayed queries immediately (unless in testing mode, during PHPUnit)
+			// this should prevent OOM during long-running jobs
+			// @see Database::executeDelayedQueries()
+			try {
+				$stmt = $this->executeQuery($query);
+				
+				if (is_callable($callback)) {
+					call_user_func($callback, $stmt);
+				}
+			} catch (\Throwable $t) {
+				// Suppress all exceptions to not allow the application to crash
+				$this->getLogger()->error($t);
+			}
+			
+			return;
+		}
+		
 		$this->delayed_queries[] = [
 			self::DELAYED_QUERY => $query,
 			self::DELAYED_HANDLER => $callback,
@@ -489,9 +509,9 @@ class Database {
 				if (is_callable($handler)) {
 					call_user_func($handler, $stmt);
 				}
-			} catch (\Exception $e) {
+			} catch (\Throwable $t) {
 				// Suppress all exceptions since page already sent to requestor
-				$this->getLogger()->error($e);
+				$this->getLogger()->error($t);
 			}
 		}
 
@@ -538,20 +558,7 @@ class Database {
 	 * @return string Empty if version cannot be determined
 	 */
 	public function getServerVersion(string $type = DbConfig::READ_WRITE): string {
-		$driver = $this->getConnection($type)->getWrappedConnection();
-		if ($driver instanceof ServerInfoAwareConnection) {
-			$version = $driver->getServerVersion();
-			
-			if ($this->isMariaDB($type)) {
-				if (str_starts_with($version, '5.5.5-')) {
-					$version = substr($version, 6);
-				}
-			}
-			
-			return $version;
-		}
-
-		return '';
+		return $this->getConnection($type)->getServerVersion();
 	}
 
 	/**
@@ -562,14 +569,20 @@ class Database {
 	 * @return bool if MariaDB is detected
 	 */
 	public function isMariaDB(string $type = DbConfig::READ_WRITE): bool {
-		$driver = $this->getConnection($type)->getWrappedConnection();
-		if ($driver instanceof ServerInfoAwareConnection) {
-			$version = $driver->getServerVersion();
-			
-			return stristr($version, 'mariadb') !== false;
-		}
-
-		return false;
+		return $this->getConnection($type)->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\MariaDBPlatform;
+	}
+	
+	/**
+	 * Is the database MySQL
+	 *
+	 * @param string $type Connection type (Config constants, e.g. Config::READ_WRITE)
+	 *
+	 * @return bool if MySQL is detected
+	 *
+	 * @since 6.0
+	 */
+	public function isMySQL(string $type = DbConfig::READ_WRITE): bool {
+		return $this->getConnection($type)->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\MySQLPlatform;
 	}
 	
 	/**

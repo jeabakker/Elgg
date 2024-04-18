@@ -38,9 +38,6 @@
  *
  * @note Internal: Plugin views are autoregistered before their init functions
  * are called, so the init order doesn't affect views.
- *
- * @note Internal: The file that determines the output of the view is the last
- * registered by {@link elgg_set_view_location()}.
  */
 
 use Elgg\Exceptions\Http\PageNotFoundException;
@@ -118,24 +115,6 @@ function elgg_register_ajax_view(string $view): void {
  */
 function elgg_unregister_ajax_view(string $view): void {
 	_elgg_services()->ajax->unregisterView($view);
-}
-
-/**
- * Set an alternative base location for a view.
- *
- * Views are expected to be in plugin_name/views/.  This function can
- * be used to change that location.
- *
- * @tip This is useful to optionally register views in a plugin.
- *
- * @param string $view     The name of the view
- * @param string $location The full path to the view
- * @param string $viewtype The view type
- *
- * @return void
- */
-function elgg_set_view_location(string $view, string $location, string $viewtype = ''): void {
-	_elgg_services()->views->setViewDir($view, $location, $viewtype);
 }
 
 /**
@@ -1327,72 +1306,27 @@ function _elgg_has_rss_link(): bool {
 function elgg_views_boot(): void {
 	_elgg_services()->viewCacher->registerCoreViews();
 
-	// jQuery and UI must come before require. See #9024
-	elgg_register_external_file('js', 'jquery', elgg_get_simplecache_url('jquery.js'));
-	elgg_load_external_file('js', 'jquery');
-
-	elgg_extend_view('require.js', 'elgg/require_config.js', 100);
-
-	elgg_register_external_file('js', 'require', elgg_get_simplecache_url('require.js'));
-	elgg_load_external_file('js', 'require');
-
-	elgg_register_external_file('js', 'elgg', elgg_get_simplecache_url('elgg.js'));
-	elgg_load_external_file('js', 'elgg');
-
 	elgg_register_external_file('css', 'font-awesome', elgg_get_simplecache_url('font-awesome/css/all.min.css'));
 	elgg_load_external_file('css', 'font-awesome');
 
-	elgg_define_js('cropperjs', [
-		'src' => elgg_get_simplecache_url('cropperjs/cropper.min.js'),
-	]);
-	elgg_define_js('jquery-cropper/jquery-cropper', [
-		'src' => elgg_get_simplecache_url('jquery-cropper/jquery-cropper.min.js'),
-	]);
-
-	elgg_require_css('elgg');
-
-	elgg_extend_view('initialize_elgg.js', 'elgg/prevent_clicks.js', 1);
-
 	elgg_extend_view('elgg.css', 'lightbox/elgg-colorbox-theme/colorbox.css');
 	elgg_extend_view('elgg.css', 'entity/edit/icon/crop.css');
+	
+	elgg_require_css('elgg');
+	
+	elgg_register_esm('cropperjs', elgg_get_simplecache_url('cropperjs/cropper.esm.js'));
+	elgg_register_esm('jquery', elgg_get_simplecache_url('elgg/jquery.mjs'));
+	elgg_register_esm('jquery-ui', elgg_get_simplecache_url('jquery-ui.js'));
+	elgg_register_esm('jquery-cropper/jquery-cropper', elgg_get_simplecache_url('jquery-cropper/jquery-cropper.esm.js'));
+	
+	elgg_import_esm('elgg');
+	elgg_import_esm('elgg/lightbox');
+	elgg_import_esm('elgg/security');
 
-	elgg_define_js('jquery.ui.autocomplete.html', [
-		'deps' => ['jquery-ui/widgets/autocomplete'],
-	]);
-
-	elgg_register_simplecache_view('elgg/touch_punch.js');
-	elgg_define_js('jquery-ui/widgets/sortable', [
-		'deps' => ['elgg/touch_punch'],
-	]);
+	elgg_extend_view('jquery-ui.js', 'jquery.ui.touch-punch.js');
+	elgg_extend_view('initialize_elgg.js', 'elgg/prevent_clicks.js', 1);
 
 	elgg_register_ajax_view('languages.js');
-}
-
-/**
- * Get the site data to be merged into "elgg" in elgg.js.
- *
- * Unlike _elgg_get_js_page_data(), the keys returned are literal expressions.
- *
- * @return array
- * @internal
- */
-function _elgg_get_js_site_data(): array {
-	
-	$message_delay = (int) elgg_get_config('message_delay');
-	if ($message_delay < 1) {
-		$message_delay = 6;
-	}
-	
-	return [
-		'elgg.data' => (object) elgg_trigger_event_results('elgg.data', 'site', [], []),
-		'elgg.release' => elgg_get_release(),
-		'elgg.config.wwwroot' => elgg_get_site_url(),
-		'elgg.config.message_delay' => $message_delay * 1000,
-
-		// refresh token 3 times during its lifetime (in microseconds 1000 * 1/3)
-		'elgg.security.interval' => (int) _elgg_services()->csrf->getActionTokenTimeout() * 333,
-		'elgg.config.language' => _elgg_services()->config->language ?: 'en',
-	];
 }
 
 /**
@@ -1409,6 +1343,11 @@ function _elgg_get_js_page_data(array $params = []): array {
 		elgg_log('"elgg.data" Event handlers must return an array. Returned ' . gettype($data) . '.', 'ERROR');
 		$data = [];
 	}
+	
+	$message_delay = (int) elgg_get_config('message_delay');
+	if ($message_delay < 1) {
+		$message_delay = 6;
+	}
 
 	$elgg = [
 		'config' => [
@@ -1416,8 +1355,15 @@ function _elgg_get_js_page_data(array $params = []): array {
 			'viewtype' => elgg_get_viewtype(),
 			'simplecache_enabled' => (int) elgg_is_simplecache_enabled(),
 			'current_language' => elgg_get_current_language(),
+			'language' => _elgg_services()->config->language ?: 'en',
+			'wwwroot' => elgg_get_site_url(),
+			'message_delay' => $message_delay * 1000,
 		],
+		'release' => elgg_get_release(),
 		'security' => [
+			// refresh token 3 times during its lifetime (in microseconds 1000 * 1/3)
+			'interval' => (int) _elgg_services()->csrf->getActionTokenTimeout() * 333,
+			
 			'token' => [
 				'__elgg_ts' => $ts = _elgg_services()->csrf->getCurrentTime()->getTimestamp(),
 				'__elgg_token' => _elgg_services()->csrf->generateActionToken($ts),
@@ -1427,7 +1373,7 @@ function _elgg_get_js_page_data(array $params = []): array {
 			'user' => null,
 			'token' => _elgg_services()->session->get('__elgg_session'),
 		],
-		'_data' => (object) $data,
+		'data' => $data,
 	];
 
 	$user = elgg_get_logged_in_user_entity();

@@ -3,7 +3,7 @@
  * Elgg add user form
  */
 
-elgg_require_js('forms/useradd');
+elgg_import_esm('forms/useradd');
 
 echo elgg_view_field([
 	'#type' => 'text',
@@ -67,7 +67,7 @@ echo elgg_view_field([
 
 $footer = elgg_view_field([
 	'#type' => 'submit',
-	'value' => elgg_echo('register'),
+	'text' => elgg_echo('register'),
 ]);
 
 elgg_set_form_footer($footer);

@@ -12,11 +12,6 @@ return [
 	'accounts' => DI\autowire(\Elgg\Users\Accounts::class),
 	'adminNotices' => DI\autowire(\Elgg\Database\AdminNotices::class),
 	'ajax' => DI\autowire(\Elgg\Ajax\Service::class),
-	'amdConfig' => DI\factory(function (ContainerInterface $c) {
-		$obj = new \Elgg\Amd\Config($c->events);
-		$obj->setBaseUrl($c->simpleCache->getRoot());
-		return $obj;
-	}),
 	'annotationsTable' => DI\autowire(\Elgg\Database\AnnotationsTable::class),
 	'apiUsersTable' => DI\autowire(\Elgg\Database\ApiUsersTable::class),
 	'authentication' => DI\autowire(\Elgg\AuthenticationService::class),
@@ -54,6 +49,7 @@ return [
 	'entity_capabilities' => DI\autowire(\Elgg\EntityCapabilitiesService::class),
 	'entityPreloader' => DI\autowire(\Elgg\EntityPreloader::class),
 	'entityTable' => DI\autowire(\Elgg\Database\EntityTable::class),
+	'esm' => DI\autowire(\Elgg\Javascript\ESMService::class),
 	'events' => DI\autowire(\Elgg\EventsService::class),
 	'externalFiles' => DI\autowire(\Elgg\Assets\ExternalFiles::class)->constructorParameter('serverCache', DI\get('serverCache')),
 	'fields' => DI\autowire(\Elgg\Forms\FieldsService::class),
@@ -117,7 +113,7 @@ return [
 	'plugins' => DI\autowire(\Elgg\Database\Plugins::class)->constructorParameter('cache', DI\get('pluginsCache')),
 	'pluginsCache' => DI\factory(function (ContainerInterface $c) {
 		return new \Elgg\Cache\CompositeCache('plugins', $c->config, ELGG_CACHE_RUNTIME);
-    }),
+	}),
 	'publicDb' => DI\autowire(\Elgg\Application\Database::class),
 	'queryCache' => DI\factory(function (ContainerInterface $c) {
 		$config_disabled = $c->config->db_disable_query_cache === true;
@@ -168,19 +164,15 @@ return [
 	'translator' => DI\autowire(\Elgg\I18n\Translator::class),
 	'uploads' => DI\autowire(\Elgg\UploadService::class),
 	'upgrades' => DI\autowire(\Elgg\UpgradeService::class),
-	'urlGenerator' => DI\factory(function (ContainerInterface $c) {
-        return new \Elgg\Router\UrlGenerator($c->routeCollection, $c->requestContext);
-    }),
-	'urlMatcher' => DI\factory(function (ContainerInterface $c) {
-        return new \Elgg\Router\UrlMatcher($c->routeCollection, $c->requestContext);
-    }),
+	'urlGenerator' => DI\autowire(\Elgg\Router\UrlGenerator::class),
+	'urlMatcher' => DI\autowire(\Elgg\Router\UrlMatcher::class),
 	'urlSigner' => DI\autowire(\Elgg\Security\UrlSigner::class),
 	'urls' => DI\autowire(\Elgg\Http\Urls::class),
 	'userCapabilities' => DI\autowire(\Elgg\UserCapabilities::class),
 	'usersApiSessionsTable' => DI\autowire(\Elgg\Database\UsersApiSessionsTable::class),
 	'users_remember_me_cookies_table' => DI\autowire(\Elgg\Database\UsersRememberMeCookiesTable::class),
 	'upgradeLocator' => DI\autowire(\Elgg\Upgrade\Locator::class),
-	'views' => DI\autowire(\Elgg\ViewsService::class),
+	'views' => DI\autowire(\Elgg\ViewsService::class)->constructorParameter('server_cache', DI\get('serverCache')),
 	'viewCacher' => DI\autowire(\Elgg\Cache\ViewCacher::class),
 	'widgets' => DI\autowire(\Elgg\WidgetsService::class),
 	
@@ -188,7 +180,6 @@ return [
 	\ElggSession::class => DI\get('session'),
 	\Elgg\ActionsService::class => DI\get('actions'),
 	\Elgg\Ajax\Service::class => DI\get('ajax'),
-	\Elgg\Amd\Config::class => DI\get('amdConfig'),
 	\Elgg\Application\CacheHandler::class => DI\get('cacheHandler'),
 	\Elgg\Application\Database::class => DI\get('publicDb'),
 	\Elgg\Application\ServeFileHandler::class => DI\get('serveFileHandler'),
@@ -249,6 +240,7 @@ return [
 	\Elgg\I18n\LocaleService::class => DI\get('locale'),
 	\Elgg\I18n\Translator::class => DI\get('translator'),
 	\Elgg\ImageService::class => DI\get('imageService'),
+	\Elgg\Javascript\ESMService::class => DI\get('esm'),
 	\Elgg\Invoker::class => DI\get('invoker'),
 	\Elgg\Logger::class => DI\get('logger'),
 	\Elgg\Menu\Service::class => DI\get('menus'),

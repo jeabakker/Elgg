@@ -40,9 +40,9 @@ use Elgg\Router\RewriteTester;
  */
 class ElggInstaller {
 	
-	public const MARIADB_MINIMAL_VERSION = '10.3';
-	public const MYSQL_MINIMAL_VERSION = '5.7';
-	public const PHP_MINIMAL_VERSION = '8.0.0';
+	public const MARIADB_MINIMAL_VERSION = '10.6';
+	public const MYSQL_MINIMAL_VERSION = '8.0';
+	public const PHP_MINIMAL_VERSION = '8.1.0';
 	
 	protected array $steps = [
 		'welcome',
@@ -139,7 +139,7 @@ class ElggInstaller {
 			$this->app = $app;
 
 			$app->internal_services->boot->getCache()->disable();
-			$app->internal_services->plugins->getCache()->disable();
+			$app->internal_services->pluginsCache->disable();
 			$app->internal_services->sessionCache->disable();
 			$app->internal_services->dataCache->disable();
 			$app->internal_services->autoloadManager->getCache()->disable();
@@ -160,7 +160,7 @@ class ElggInstaller {
 
 			$app->internal_services->views->setViewtype('installation');
 			$app->internal_services->views->registerViewtypeFallback('installation');
-			$app->internal_services->views->registerPluginViews(Paths::elgg());
+			$app->internal_services->views->registerViewsFromPath(Paths::elgg());
 			$app->internal_services->translator->registerTranslations(Paths::elgg() . 'install/languages/', true);
 
 			return $this->app;
@@ -753,7 +753,7 @@ class ElggInstaller {
 			}
 
 			// check that the config table has entries
-			$qb = \Elgg\Database\Select::fromTable('config');
+			$qb = \Elgg\Database\Select::fromTable(\Elgg\Database\ConfigTable::TABLE_NAME);
 			$qb->select('COUNT(*) AS total');
 
 			$result = $db->getDataRow($qb);
@@ -764,7 +764,7 @@ class ElggInstaller {
 			}
 
 			// check that the users entity table has an entry
-			$qb = \Elgg\Database\Select::fromTable('entities', 'e');
+			$qb = \Elgg\Database\Select::fromTable(\Elgg\Database\EntityTable::TABLE_NAME, \Elgg\Database\EntityTable::DEFAULT_JOIN_ALIAS);
 			$qb->select('COUNT(*) AS total')
 				->where($qb->compare('type', '=', 'user', ELGG_VALUE_STRING));
 
@@ -992,6 +992,7 @@ class ElggInstaller {
 			'json',
 			'xml',
 			'gd',
+			'intl',
 		];
 		foreach ($requiredExtensions as $extension) {
 			if (!in_array($extension, $extensions)) {
@@ -1212,7 +1213,7 @@ class ElggInstaller {
 			'dbname' => $dbname,
 			'dbencoding' => 'utf8mb4',
 		]);
-		$db = new Database($config, $app->internal_services->queryCache);
+		$db = new Database($config, $app->internal_services->queryCache, $app->internal_services->config);
 
 		try {
 			$db->getConnection('read')->executeQuery('SELECT 1');
@@ -1250,7 +1251,7 @@ class ElggInstaller {
 	protected function createSettingsFile(array $params): bool {
 		$app = $this->getApp();
 
-		$template = Application::elggDir()->getContents('elgg-config/settings.example.php');
+		$template = file_get_contents(Paths::elgg() . 'elgg-config/settings.example.php');
 		if (!$template) {
 			$app->internal_services->system_messages->addErrorMessage(elgg_echo('install:error:readsettingsphp'));
 
@@ -1451,7 +1452,7 @@ class ElggInstaller {
 			$app->internal_services->reset('plugins');
 			
 			if (elgg_extract('activate_plugins', $submissionVars, true)) {
-				$plugins = $app->internal_services->plugins->find('any');
+				$plugins = $app->internal_services->plugins->find('all');
 	
 				foreach ($plugins as $plugin) {
 					$plugin_config = $plugin->getStaticConfig('plugin', []);

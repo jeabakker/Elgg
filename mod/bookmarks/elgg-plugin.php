@@ -18,6 +18,7 @@ return [
 				'commentable' => true,
 				'searchable' => true,
 				'likable' => true,
+				'restorable' => true,
 			],
 		],
 	],
@@ -137,11 +138,6 @@ return [
 	],
 	'group_tools' => [
 		'bookmarks' => [],
-	],
-	'view_extensions' => [
-		'elgg.js' => [
-			'bookmarks.js' => [],
-		],
 	],
 	'notifications' => [
 		'object' => [

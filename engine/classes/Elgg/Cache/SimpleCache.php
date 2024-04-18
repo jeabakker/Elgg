@@ -13,16 +13,13 @@ use Elgg\ViewsService;
  * @since 1.10.0
  */
 class SimpleCache {
-
+	
 	/**
-	 * @var Config
+	 * @var array Simplecache views (view names are keys)
+	 *
+	 * [view] = true
 	 */
-	protected $config;
-
-	/**
-	 * @var ViewsService
-	 */
-	protected $views;
+	protected array $simplecache_views = [];
 
 	/**
 	 * Constructor
@@ -31,53 +28,27 @@ class SimpleCache {
 	 * @param ViewsService $views  Views service
 	 */
 	public function __construct(
-		Config $config,
-		ViewsService $views
+		protected Config $config,
+		protected ViewsService $views
 	) {
-		$this->config = $config;
-		$this->views = $views;
 	}
 
 	/**
 	 * Get the URL for the cached view.
-	 *
-	 * Recommended usage is to just pass the entire view name as the first and only arg:
 	 *
 	 * ```
 	 * $blog_js = $simpleCache->getUrl('blog/save_draft.js');
 	 * $favicon = $simpleCache->getUrl('graphics/favicon.ico');
 	 * ```
 	 *
-	 * For backwards compatibility with older versions of Elgg, you can also pass
-	 * "js" or "css" as the first arg, with the rest of the view name as the second arg:
-	 *
-	 * ```
-	 * $blog_js = $simpleCache->getUrl('js', 'blog/save_draft.js');
-	 * ```
-	 *
 	 * This automatically registers the view with Elgg's simplecache.
 	 *
-	 * @param string $view    The full view name
-	 * @param string $subview If the first arg is "css" or "js", the rest of the view name
+	 * @param string $view The full view name
 	 *
 	 * @return string
 	 */
-	public function getUrl(string $view, string $subview = ''): string {
-		// handle `getUrl('js', 'js/blog/save_draft')`
-		if (($view === 'js' || $view === 'css') && str_starts_with($subview, $view . '/')) {
-			$view = $subview;
-			$subview = '';
-		}
-
-		// handle `getUrl('js', 'blog/save_draft')`
-		if (!empty($subview)) {
-			$view = "{$view}/{$subview}";
-		}
-
-		$view = ViewsService::canonicalizeViewName($view);
-
-		// should be normalized to canonical form by now: `getUrl('blog/save_draft.js')`
-		$this->views->registerCacheableView($view);
+	public function getUrl(string $view): string {
+		$this->registerCacheableView($view);
 
 		return $this->getRoot() . $view;
 	}
@@ -87,7 +58,7 @@ class SimpleCache {
 	 *
 	 * @return string The simplecache root url for the current viewtype
 	 */
-	public function getRoot() {
+	public function getRoot(): string {
 		$viewtype = $this->views->getViewtype();
 		if ($this->isEnabled()) {
 			$lastcache = (int) $this->config->lastcache;
@@ -97,13 +68,70 @@ class SimpleCache {
 
 		return elgg_normalize_url("/cache/{$lastcache}/{$viewtype}/");
 	}
+	
+	/**
+	 * Register a view as cacheable
+	 *
+	 * @param string $view the view name
+	 *
+	 * @return void
+	 */
+	public function registerCacheableView(string $view): void {
+		$this->simplecache_views[$view] = true;
+	}
+	
+	/**
+	 * Is the view cacheable
+	 *
+	 * @param string $view the view name
+	 *
+	 * @return bool
+	 */
+	public function isCacheableView(string $view): bool {
+		if (isset($this->simplecache_views[$view])) {
+			return true;
+		}
+		
+		// build list of viewtypes to check
+		$current_viewtype = $this->views->getViewtype();
+		$viewtypes = [$current_viewtype];
+		
+		if ($this->views->doesViewtypeFallback($current_viewtype) && $current_viewtype != 'default') {
+			$viewtypes[] = 'default';
+		}
+		
+		// If a static view file is found in any viewtype, it's considered cacheable
+		foreach ($viewtypes as $viewtype) {
+			$file = $this->views->findViewFile($view, $viewtype);
+			
+			if ($file && pathinfo($file, PATHINFO_EXTENSION) !== 'php') {
+				$this->simplecache_views[$view] = true;
+				
+				return true;
+			}
+		}
+		
+		// Assume not-cacheable by default
+		return false;
+	}
+	
+	/**
+	 * Returns the cacheable views
+	 *
+	 * @return array
+	 *
+	 * @internal
+	 */
+	public function getCacheableViews(): array {
+		return $this->simplecache_views;
+	}
 
 	/**
 	 * Is simple cache enabled
 	 *
 	 * @return bool
 	 */
-	public function isEnabled() {
+	public function isEnabled(): bool {
 		return (bool) $this->config->simplecache_enabled;
 	}
 
@@ -113,7 +141,7 @@ class SimpleCache {
 	 * @return void
 	 * @see elgg_register_simplecache_view()
 	 */
-	public function enable() {
+	public function enable(): void {
 		$this->config->save('simplecache_enabled', 1);
 	}
 
@@ -123,7 +151,7 @@ class SimpleCache {
 	 * @return void
 	 * @see elgg_register_simplecache_view()
 	 */
-	public function disable() {
+	public function disable(): void {
 		if (!$this->isEnabled()) {
 			return;
 		}
@@ -136,20 +164,19 @@ class SimpleCache {
 	 *
 	 * @return string
 	 */
-	protected function getPath() {
+	protected function getPath(): string {
 		return (string) $this->config->assetroot;
 	}
 	
 	/**
 	 * Deletes all cached views in the simplecache
 	 *
-	 * @return bool
+	 * @return void
+	 *
 	 * @since 3.3
 	 */
-	public function clear() {
+	public function clear(): void {
 		elgg_delete_directory($this->getPath(), true);
-		
-		return true;
 	}
 	
 	/**
@@ -157,7 +184,7 @@ class SimpleCache {
 	 *
 	 * @return void
 	 */
-	public function purge() {
+	public function purge(): void {
 		$lastcache = (int) $this->config->lastcache;
 		
 		if (!is_dir($this->getPath())) {

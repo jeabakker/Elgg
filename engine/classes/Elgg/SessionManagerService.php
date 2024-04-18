@@ -14,51 +14,14 @@ use Elgg\I18n\Translator;
  * @since 5.0
  */
 class SessionManagerService {
+	
+	protected bool $ignore_access = false;
+	
+	protected ?\ElggUser $logged_in_user = null;
+	
+	protected bool $show_disabled_entities = false;
 
-	/**
-	 * @var EntityCache
-	 */
-	protected $entity_cache;
-	
-	/**
-	 * @var EventsService
-	 */
-	protected $events;
-	
-	/**
-	 * @var bool
-	 */
-	protected $ignore_access = false;
-	
-	/**
-	 * @var \ElggUser|null
-	 */
-	protected $logged_in_user;
-	
-	/**
-	 * @var PersistentLoginService
-	 */
-	protected $persistent_login;
-	
-	/**
-	 * @var bool
-	 */
-	protected $show_disabled_entities = false;
-	
-	/**
-	 * @var \ElggSession
-	 */
-	protected $session;
-	
-	/**
-	 * @var SessionCache
-	 */
-	protected $session_cache;
-	
-	/**
-	 * @var Translator
-	 */
-	protected $translator;
+	protected bool $show_deleted_entities = false;
 	
 	/**
 	 * Constructor
@@ -71,19 +34,13 @@ class SessionManagerService {
 	 * @param EntityCache            $entity_cache     the entity cache
 	 */
 	public function __construct(
-		\ElggSession $session,
-		EventsService $events,
-		Translator $translator,
-		PersistentLoginService $persistent_login,
-		SessionCache $session_cache,
-		EntityCache $entity_cache
-		) {
-		$this->session = $session;
-		$this->events = $events;
-		$this->translator = $translator;
-		$this->persistent_login = $persistent_login;
-		$this->session_cache = $session_cache;
-		$this->entity_cache = $entity_cache;
+		protected \ElggSession $session,
+		protected EventsService $events,
+		protected Translator $translator,
+		protected PersistentLoginService $persistent_login,
+		protected SessionCache $session_cache,
+		protected EntityCache $entity_cache
+	) {
 	}
 	
 	/**
@@ -129,6 +86,31 @@ class SessionManagerService {
 		$prev = $this->show_disabled_entities;
 		$this->show_disabled_entities = $show;
 		
+		return $prev;
+	}
+
+	/**
+	 * Are deleted entities shown?
+	 *
+	 * @return bool
+	 * @since 6.0
+	 */
+	public function getDeletedEntityVisibility(): bool {
+		return $this->show_deleted_entities;
+	}
+	
+	/**
+	 * Include deleted entities in queries
+	 *
+	 * @param bool $show Visibility status
+	 *
+	 * @return bool Previous setting
+	 * @since 6.0
+	 */
+	public function setDeletedEntityVisibility(bool $show = true): bool {
+		$prev = $this->show_deleted_entities;
+		$this->show_deleted_entities = $show;
+
 		return $prev;
 	}
 	
@@ -203,40 +185,46 @@ class SessionManagerService {
 		if ($user->isBanned()) {
 			throw new LoginException($this->translator->translate('LoginException:BannedUser'));
 		}
-
-		// give plugins a chance to reject the login of this user (no user in session!)
-		if (!$this->events->triggerBefore('login', 'user', $user)) {
-			throw new LoginException($this->translator->translate('LoginException:Unknown'));
-		}
-		
-		if (!$user->isEnabled()) {
-			// fallback if no plugin provided a reason
-			throw new LoginException($this->translator->translate('LoginException:DisabledUser'));
-		}
-		
-		// #5933: set logged in user early so code in login event will be able to
-		// use elgg_get_logged_in_user_entity().
-		$this->setLoggedInUser($user);
-		$this->setUserToken($user);
-		
-		// re-register at least the core language file for users with language other than site default
-		$this->translator->registerTranslations(\Elgg\Project\Paths::elgg() . 'languages/');
-		
-		// if remember me checked, set cookie with token and store hash(token) for user
-		if ($persistent) {
-			$this->persistent_login->makeLoginPersistent($user);
-		}
-		
-		// User's privilege has been elevated, so change the session id (prevents session fixation)
-		$this->session->migrate();
 		
 		// check before updating last login to determine first login
 		$first_login = empty($user->last_login);
 		
-		$user->setLastLogin();
-		_elgg_services()->accounts->resetAuthenticationFailures($user); // can't inject DI service because of circular reference
+		$this->events->triggerSequence('login', 'user', $user, function(\ElggUser $user) use ($persistent) {
+			if (!$user->isEnabled()) {
+				return false;
+			}
+			
+			$this->setLoggedInUser($user, true);
+			$this->setUserToken($user);
+			
+			// re-register at least the core language file for users with language other than site default
+			$this->translator->registerTranslations(\Elgg\Project\Paths::elgg() . 'languages/');
+			
+			// if remember me checked, set cookie with token and store hash(token) for user
+			if ($persistent) {
+				$this->persistent_login->makeLoginPersistent($user);
+			}
+			
+			// User's privilege has been elevated, so change the session id (prevents session fixation)
+			$this->session->migrate();
+			
+			$user->setLastLogin();
+			
+			_elgg_services()->accounts->resetAuthenticationFailures($user); // can't inject DI service because of circular reference
+			
+			return true;
+		});
 		
-		$this->events->triggerAfter('login', 'user', $user);
+		if (!$user->isEnabled()) {
+			$this->removeLoggedInUser();
+			
+			throw new LoginException($this->translator->translate('LoginException:DisabledUser'));
+		}
+		
+		if (!elgg_is_logged_in()) {
+			// login might be prevented without throwing a custom exception
+			throw new LoginException($this->translator->translate('LoginException:Unknown'));
+		}
 		
 		if ($first_login) {
 			$this->events->trigger('login:first', 'user', $user);
@@ -278,13 +266,23 @@ class SessionManagerService {
 	/**
 	 * Sets the logged in user
 	 *
-	 * @param \ElggUser $user The user who is logged in
+	 * @param \ElggUser $user    The user who is logged in
+	 * @param bool|null $migrate Migrate the session (default: !\Elgg\Application::isCli())
+	 *
 	 * @return void
 	 * @since 1.9
 	 */
-	public function setLoggedInUser(\ElggUser $user): void {
+	public function setLoggedInUser(\ElggUser $user, bool $migrate = null): void {
 		$current_user = $this->getLoggedInUser();
 		if ($current_user != $user) {
+			if (!isset($migrate)) {
+				$migrate = !\Elgg\Application::isCli();
+			}
+			
+			if ($migrate) {
+				$this->session->migrate(true);
+			}
+			
 			$this->session->set('guid', $user->guid);
 			$this->logged_in_user = $user;
 			$this->session_cache->clear();

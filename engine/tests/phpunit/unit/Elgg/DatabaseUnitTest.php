@@ -11,7 +11,6 @@ class DatabaseUnitTest extends \Elgg\UnitTestCase {
 		$db = $this->getDbMock();
 		
 		$reflection_method = new \ReflectionMethod($db, 'fingerprintCallback');
-		$reflection_method->setAccessible(true);
 		
 		$prints = [];
 		$uniques = 0;
@@ -49,7 +48,7 @@ class DatabaseUnitTest extends \Elgg\UnitTestCase {
 		
 		$this->expectException(\RuntimeException::class);
 		$this->expectExceptionMessage('$callback must be a callable function. Given blorg!');
-		$db->getData(\Elgg\Database\Select::fromTable('foo'), 'blorg!');
+		$db->getData(\Elgg\Database\Select::fromTable('foo')->select('*'), 'blorg!');
 	}
 	
 	/**
@@ -60,7 +59,8 @@ class DatabaseUnitTest extends \Elgg\UnitTestCase {
 			->onlyMethods(['updateData'])
 			->setConstructorArgs([
 				new \Elgg\Database\DbConfig((object) ['dbprefix' => 'test_']),
-				_elgg_services()->queryCache
+				_elgg_services()->queryCache,
+				_elgg_services()->config,
 			])
 			->getMock();
 	}

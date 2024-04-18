@@ -10,7 +10,7 @@ if (!$user instanceof \ElggUser) {
 	return;
 }
 
-elgg_require_js('forms/settings/notifications');
+elgg_import_esm('forms/settings/notifications');
 elgg_require_css('forms/settings/notifications');
 
 echo elgg_view_field([
@@ -31,7 +31,7 @@ echo elgg_view('notifications/settings/timed_muting', $vars);
 // form footer
 $footer = elgg_view_field([
 	'#type' => 'submit',
-	'value' => elgg_echo('save'),
+	'text' => elgg_echo('save'),
 ]);
 
 elgg_set_form_footer($footer);

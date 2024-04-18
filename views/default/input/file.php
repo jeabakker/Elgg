@@ -19,8 +19,7 @@ if (!empty($vars['value'])) {
 $vars['class'] = elgg_extract_class($vars, 'elgg-input-file');
 
 $defaults = [
-	'disabled' => false,
-	'type' => 'file'
+	'type' => 'file',
 ];
 
 $vars = array_merge($defaults, $vars);
@@ -41,7 +40,7 @@ if ($max_size !== false) {
 	$vars['data-max-size'] = $max_size;
 	$vars['data-max-size-message'] = elgg_echo('upload:error:ini_size') . ' ' . elgg_echo('input:file:upload_limit', [elgg_format_bytes($max_size)]);
 	
-	elgg_require_js('input/file');
+	elgg_import_esm('input/file');
 }
 
 echo elgg_format_element('input', $vars);

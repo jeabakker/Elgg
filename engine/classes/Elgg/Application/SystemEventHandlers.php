@@ -50,9 +50,12 @@ class SystemEventHandlers {
 		elgg_register_ajax_view('admin/users/listing/details');
 		elgg_register_ajax_view('core/ajax/edit_comment');
 		elgg_register_ajax_view('forms/admin/user/change_email');
+		elgg_register_ajax_view('forms/comment/save');
+		elgg_register_ajax_view('forms/entity/chooserestoredestination');
 		elgg_register_ajax_view('navigation/menu/user_hover/contents');
 		elgg_register_ajax_view('notifications/subscriptions/details');
 		elgg_register_ajax_view('object/plugin/details');
+		elgg_register_ajax_view('object/widget/edit');
 		elgg_register_ajax_view('page/elements/comments');
 		elgg_register_ajax_view('river/elements/responses');
 		
@@ -116,7 +119,7 @@ class SystemEventHandlers {
 	 * @return void
 	 */
 	public static function ready() {
-		_elgg_services()->systemCache->init();
+		_elgg_services()->views->cacheConfiguration();
 	}
 	
 	/**

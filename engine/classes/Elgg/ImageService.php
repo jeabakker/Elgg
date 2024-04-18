@@ -31,22 +31,12 @@ class ImageService {
 	protected $imagine;
 
 	/**
-	 * @var Config
-	 */
-	protected $config;
-	
-	/**
-	 * @var MimeTypeService
-	 */
-	protected $mimetype;
-
-	/**
 	 * Constructor
 	 *
 	 * @param Config          $config   Elgg config
 	 * @param MimeTypeService $mimetype MimeType service
 	 */
-	public function __construct(Config $config, MimeTypeService $mimetype) {
+	public function __construct(protected Config $config, protected MimeTypeService $mimetype) {
 		
 		switch ($config->image_processor) {
 			case 'imagick':
@@ -61,9 +51,6 @@ class ImageService {
 				$this->imagine = new \Imagine\Gd\Imagine();
 				break;
 		}
-
-		$this->config = $config;
-		$this->mimetype = $mimetype;
 	}
 
 	/**
@@ -118,7 +105,12 @@ class ImageService {
 			}
 
 			$target_size = new Box($max_width, $max_height);
-			$thumbnail = $image->resize($target_size);
+			$image->resize($target_size);
+			
+			// create new canvas with a background (default: white)
+			$background_color = elgg_extract('background_color', $params, 'ffffff');
+			$thumbnail = $this->imagine->create($image->getSize(), $image->palette()->color($background_color));
+			$thumbnail->paste($image, new Point(0, 0));
 
 			if (pathinfo($destination, PATHINFO_EXTENSION) === 'webp') {
 				$options = [

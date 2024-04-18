@@ -2,56 +2,20 @@
 
 namespace Elgg;
 
-use Elgg\Exceptions\Http\BadRequestException ;
 use Elgg\Exceptions\Http\PageNotFoundException;
 use Elgg\Http\OkResponse;
 use Elgg\Http\Request;
-use Elgg\I18n\Translator;
-use Elgg\Router\RouteRegistrationService;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Elgg\Exceptions\Http\Gatekeeper\AjaxGatekeeperException;
 
 class RouterUnitTest extends \Elgg\UnitTestCase {
 
-	/**
-	 * @var Request
-	 */
-	protected $request;
+	protected string $viewsDir;
 
-	/**
-	 * @var Router
-	 */
-	protected $router;
-
-	/**
-	 * @var RouteRegistrationService
-	 */
-	protected $routes;
-
-	/**
-	 * @var string
-	 */
-	protected $pages;
-
-	/**
-	 * @var Translator
-	 */
-	protected $translator;
-
-	/**
-	 * @var string
-	 */
-	protected $viewsDir;
-
-	/**
-	 * @var int
-	 */
-	protected $fooHandlerCalls = 0;
+	protected int $fooHandlerCalls = 0;
 
 	public function up() {
-
-		$this->pages = $this->normalizeTestFilePath('pages');
 		$this->fooHandlerCalls = 0;
 		$this->viewsDir = $this->normalizeTestFilePath('views');
 
@@ -109,7 +73,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	public function hello_page_handler($segments, $identifier) {
-		include "{$this->pages}/hello.php";
+		include "{$this->normalizeTestFilePath('pages')}/hello.php";
 
 		return true;
 	}
@@ -193,7 +157,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -216,7 +180,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -242,7 +206,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(RedirectResponse::class, $response);
@@ -264,7 +228,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -288,7 +252,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(RedirectResponse::class, $response);
@@ -308,7 +272,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -342,7 +306,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 		
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -371,7 +335,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 		
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -399,7 +363,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -427,7 +391,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -456,7 +420,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -481,7 +445,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -507,7 +471,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -537,7 +501,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -571,7 +535,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -601,7 +565,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 		
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -637,7 +601,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -674,7 +638,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -709,7 +673,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 			},
 		]);
 
-		$this->assertTrue($this->route($request));
+		$this->route($request);
 
 		$response = _elgg_services()->responseFactory->getSentResponse();
 		$this->assertInstanceOf(Response::class, $response);
@@ -767,7 +731,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 		$request = $this->prepareHttpRequest('ajax/view/cacheable.xml', 'GET', [], 1);
 		$this->createService($request);
 
-		$this->assertTrue(_elgg_services()->views->isCacheableView('cacheable.xml'));
+		$this->assertTrue(_elgg_services()->simpleCache->isCacheableView('cacheable.xml'));
 
 		$this->route($request);
 
@@ -780,7 +744,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 
 	public function testCanRespondToAjaxViewRequestForCSS() {
 
-		$request = $this->prepareHttpRequest('ajax/view/css/styles.css', 'GET', [], 1);
+		$request = $this->prepareHttpRequest('ajax/view/styles.css', 'GET', [], 1);
 		$this->createService($request);
 
 		$this->route($request);
@@ -795,7 +759,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 
 	public function testCanRespondToAjaxViewRequestForJS() {
 
-		$request = $this->prepareHttpRequest('ajax/view/js/javascript.js', 'GET', [], 1);
+		$request = $this->prepareHttpRequest('ajax/view/javascript.js', 'GET', [], 1);
 		$this->createService($request);
 
 		$this->route($request);
@@ -913,7 +877,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 		$request = $this->prepareHttpRequest('ajax/view/cacheable.xml', 'GET', [], 2);
 		$this->createService($request);
 
-		$this->assertTrue(_elgg_services()->views->isCacheableView('cacheable.xml'));
+		$this->assertTrue(_elgg_services()->simpleCache->isCacheableView('cacheable.xml'));
 
 		$this->route($request);
 
@@ -938,7 +902,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 	 */
 	public function testCanRespondToAjax2ViewRequestForCSS() {
 
-		$request = $this->prepareHttpRequest('ajax/view/css/styles.css', 'GET', [], 2);
+		$request = $this->prepareHttpRequest('ajax/view/styles.css', 'GET', [], 2);
 		$this->createService($request);
 
 		$this->route($request);
@@ -950,7 +914,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 
 		$output = json_encode([
 			'value' => file_get_contents($this->viewsDir . '/default/styles.css'),
-			'current_url' => elgg_normalize_url('ajax/view/css/styles.css'),
+			'current_url' => elgg_normalize_url('ajax/view/styles.css'),
 			'forward_url' => elgg_normalize_url(''),
 			'_elgg_msgs' => (object) [],
 			'_elgg_deps' => [],
@@ -964,7 +928,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 	 */
 	public function testCanRespondToAjax2ViewRequestForJS() {
 
-		$request = $this->prepareHttpRequest('ajax/view/js/javascript.js', 'GET', [], 2);
+		$request = $this->prepareHttpRequest('ajax/view/javascript.js', 'GET', [], 2);
 		$this->createService($request);
 
 		$this->route($request);
@@ -976,7 +940,7 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 
 		$output = json_encode([
 			'value' => file_get_contents($this->viewsDir . '/default/javascript.js'),
-			'current_url' => elgg_normalize_url('ajax/view/js/javascript.js'),
+			'current_url' => elgg_normalize_url('ajax/view/javascript.js'),
 			'forward_url' => elgg_normalize_url(''),
 			'_elgg_msgs' => (object) [],
 			'_elgg_deps' => [],
@@ -1070,7 +1034,10 @@ class RouterUnitTest extends \Elgg\UnitTestCase {
 		$this->assertInstanceOf(Response::class, $response);
 		$this->assertEquals(ELGG_HTTP_BAD_REQUEST, $response->getStatusCode());
 		$this->assertStringContainsString('application/json', $response->headers->get('Content-Type'));
-
+		
+		// compensate for fact that ResponseFactory::redirect closes a buffer it didn't open
+		ob_start();
+		
 		/**
 		 * @todo: decide what the output should be
 		 * Do we use the buffer output when responding with error to Ajax2?

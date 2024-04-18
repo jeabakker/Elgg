@@ -11,7 +11,7 @@ if (!elgg_is_logged_in()) {
 	return;
 }
 
-elgg_require_js('elgg/comments');
+elgg_import_esm('elgg/comments');
 
 /* @var \ElggEntity $entity */
 $entity = elgg_extract('entity', $vars);
@@ -36,11 +36,11 @@ if ($comment instanceof \ElggComment && $comment->canEdit()) {
 		'value' => $comment->guid,
 	]);
 	$comment_label  = elgg_echo('generic_comments:edit');
-	$footer .= elgg_view('input/submit', ['value' => elgg_echo('save')]);
+	$footer .= elgg_view('input/submit', ['text' => elgg_echo('save')]);
 	$comment_text = $comment->description;
 } else {
 	$comment_label  = elgg_echo('generic_comments:add');
-	$footer .= elgg_view('input/submit', ['value' => elgg_echo('comment')]);
+	$footer .= elgg_view('input/submit', ['text' => elgg_echo('comment')]);
 }
 
 if ($inline) {
@@ -50,10 +50,7 @@ if ($inline) {
 		'required' => true,
 	]);
 	
-	$form .= $footer;
-	echo elgg_format_element('div', [
-		'class' => 'elgg-level',
-	], $form);
+	echo elgg_format_element('div', ['class' => 'elgg-fieldset-horizontal'], $form . $footer);
 } else {
 	echo elgg_view_field([
 		'#type' => 'longtext',
@@ -66,7 +63,7 @@ if ($inline) {
 	
 	if ($comment) {
 		$footer .= elgg_view('input/button', [
-			'value' => elgg_echo('cancel'),
+			'text' => elgg_echo('cancel'),
 			'class' => 'elgg-button-cancel mlm',
 			'href' => $entity ? $entity->getURL() : '#',
 		]);

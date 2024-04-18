@@ -4,6 +4,7 @@ namespace Elgg\Cache;
 
 use Elgg\Database\Clauses\GroupByClause;
 use Elgg\Database\Clauses\OrderByClause;
+use Elgg\Database\MetadataTable;
 use Elgg\Exceptions\DataFormatException;
 use Elgg\Values;
 
@@ -15,17 +16,11 @@ use Elgg\Values;
 class MetadataCache {
 
 	/**
-	 * @var BaseCache
-	 */
-	protected $cache;
-
-	/**
 	 * Constructor
 	 *
 	 * @param BaseCache $cache Cache
 	 */
-	public function __construct(BaseCache $cache) {
-		$this->cache = $cache;
+	public function __construct(protected BaseCache $cache) {
 	}
 
 	/**
@@ -222,7 +217,7 @@ class MetadataCache {
 	/**
 	 * Populate the cache from a set of entities
 	 *
-	 * @param int[] ...$guids Array of or single GUIDs
+	 * @param mixed ...$guids Array of entities or GUIDs
 	 * @return array|null [guid => [metadata]]
 	 */
 	public function populateFromEntities(...$guids) {
@@ -279,22 +274,24 @@ class MetadataCache {
 	 * @return array
 	 */
 	public function filterMetadataHeavyEntities(array $guids, $limit = 1024000) {
+		$main_alias = MetadataTable::DEFAULT_JOIN_ALIAS;
+		
 		$guids = _elgg_services()->metadataTable->getAll([
 			'guids' => $guids,
 			'limit' => false,
 			'callback' => function($e) {
 				return (int) $e->entity_guid;
 			},
-			'selects' => ['SUM(LENGTH(n_table.value)) AS bytes'],
+			'selects' => ["SUM(LENGTH({$main_alias}.value)) AS bytes"],
 			'order_by' => [
-				new OrderByClause('n_table.entity_guid'),
-				new OrderByClause('n_table.time_created'),
+				new OrderByClause("{$main_alias}.entity_guid"),
+				new OrderByClause("{$main_alias}.time_created"),
 			],
 			'group_by' => [
-				new GroupByClause('n_table.entity_guid'),
+				new GroupByClause("{$main_alias}.entity_guid"),
 			],
 			'having' => [
-				"bytes < $limit",
+				"bytes < {$limit}",
 			]
 		]);
 

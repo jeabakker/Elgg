@@ -51,6 +51,7 @@ return array(
 	'groups:content_access_mode:unrestricted' => "Unrestricted - Access depends on content-level settings",
 	'groups:content_access_mode:membersonly' => "Members Only - Non-members can never access group content",
 	'groups:owner' => "Owner",
+	'groups:owner:placeholder' => "Search for a group member",
 	'groups:owner:warning' => "Warning: if you change this value, you will no longer be the owner of this group.",
 	'groups:widget:num_display' => 'Number of groups to display',
 	'widgets:a_users_groups:name' => 'Group membership',
@@ -178,4 +179,8 @@ or click below to view the group's join requests:
 	
 	'groups:usersettings:notifications:title' => 'Group notifications',
 	'groups:usersettings:notifications:description' => 'To receive notifications when new content is added to a group you are a member of, find it below and select the notification method(s) you would like to use.',
+	
+	// accessibility
+	'groups:aria:label:group_search' => "Search for groups",
+	'groups:aria:label:search_in_group' => "Search in this group",
 );

@@ -22,34 +22,26 @@ class EventsService {
 	const REG_KEY_HANDLER = 2;
 	
 	const OPTION_STOPPABLE = 'stoppable';
+	const OPTION_USE_TIMER = 'use_timer';
+	const OPTION_TIMER_KEYS = 'timer_keys';
+	const OPTION_BEGIN_CALLBACK = 'begin_callback';
+	const OPTION_END_CALLBACK = 'end_callback';
 
-	/**
-	 * @var HandlersService
-	 */
-	protected $handlers;
-	
-	/**
-	 * @var int
-	 */
-	protected $next_index = 0;
+	protected int $next_index = 0;
 	
 	/**
 	 * @var array [name][type][] = registration
 	 */
-	protected $registrations = [];
+	protected array $registrations = [];
 	
-	/**
-	 * @var array
-	 */
-	protected $backups = [];
+	protected array $backups = [];
 
 	/**
 	 * Constructor
 	 *
 	 * @param HandlersService $handlers Handlers
 	 */
-	public function __construct(HandlersService $handlers) {
-		$this->handlers = $handlers;
+	public function __construct(protected HandlersService $handlers) {
 	}
 
 	/**
@@ -70,7 +62,13 @@ class EventsService {
 		$options = array_merge([
 			self::OPTION_STOPPABLE => true,
 		], $options);
-
+		
+		// allow for the profiling of system events (when enabled)
+		if ($this->hasTimer() && $type === 'system' && $name !== 'shutdown') {
+			$options[self::OPTION_USE_TIMER] = true;
+			$options[self::OPTION_TIMER_KEYS] = ["[{$name},{$type}]"];
+		}
+		
 		// get registered handlers
 		$handlers = $this->getOrderedHandlers($name, $type);
 
@@ -79,26 +77,17 @@ class EventsService {
 		// creating objects for every triggering is expensive.
 		/* @var $event Event|string */
 		$event = 'event';
+		$event_args = [
+			$name,
+			$type,
+			null,
+			[
+				'object' => $object,
+				'_elgg_sequence_id' => elgg_extract('_elgg_sequence_id', $options),
+			],
+		];
 		foreach ($handlers as $handler) {
-			$handler_description = false;
-			if ($this->hasTimer() && $type === 'system' && $name !== 'shutdown') {
-				$handler_description = $this->handlers->describeCallable($handler) . '()';
-				$this->beginTimer(["[{$name},{$type}]", $handler_description]);
-			}
-
-			list($success, $return, $event) = $this->handlers->call($handler, $event, [
-				$name,
-				$type,
-				null,
-				[
-					'object' => $object,
-					'_elgg_sequence_id' => elgg_extract('_elgg_sequence_id', $options),
-				],
-			]);
-
-			if ($handler_description) {
-				$this->endTimer(["[{$name},{$type}]", $handler_description]);
-			}
+			list($success, $return, $event) = $this->callHandler($handler, $event, $event_args, $options);
 
 			if (!$success) {
 				continue;
@@ -115,23 +104,26 @@ class EventsService {
 	/**
 	 * Triggers a event that is allowed to return a mixed result
 	 *
-	 * @param string $name   The name of the event
-	 * @param string $type   The type of the event
-	 * @param mixed  $params Supplied params for the event
-	 * @param mixed  $value  The value of the event, this can be altered by registered callbacks
+	 * @param string $name    The name of the event
+	 * @param string $type    The type of the event
+	 * @param mixed  $params  Supplied params for the event
+	 * @param mixed  $value   The value of the event, this can be altered by registered callbacks
+	 * @param array  $options (internal) options for triggering the event
 	 *
 	 * @return mixed
 	 *
 	 * @see elgg_trigger_event_results()
 	 */
-	public function triggerResults(string $name, string $type, array $params = [], $value = null) {
+	public function triggerResults(string $name, string $type, array $params = [], $value = null, array $options = []) {
 		// This starts as a string, but if a handler type-hints an object we convert it on-demand inside
 		// \Elgg\HandlersService::call and keep it alive during all handler calls. We do this because
 		// creating objects for every triggering is expensive.
 		/* @var $event Event|string */
 		$event = 'event';
 		foreach ($this->getOrderedHandlers($name, $type) as $handler) {
-			list($success, $return, $event) = $this->handlers->call($handler, $event, [$name, $type, $value, $params]);
+			$event_args = [$name, $type, $value, $params];
+			
+			list($success, $return, $event) = $this->callHandler($handler, $event, $event_args, $options);
 			
 			if (!$success) {
 				continue;
@@ -194,7 +186,7 @@ class EventsService {
 	}
 
 	/**
-	 * Trigger an sequence of <event>:before, <event>, and <event>:after handlers.
+	 * Trigger a sequence of <event>:before, <event>, and <event>:after handlers.
 	 * Allows <event>:before to terminate the sequence by returning false from a handler
 	 * Allows running a callable on successful <event> before <event>:after is triggered
 	 * Returns the result of the callable or bool
@@ -224,7 +216,9 @@ class EventsService {
 			$result = call_user_func($callable, $object);
 		}
 
-		$this->triggerAfter($name, $type, $object, $options);
+		if ($result !== false) {
+			$this->triggerAfter($name, $type, $object, $options);
+		}
 
 		return $result;
 	}
@@ -253,7 +247,7 @@ class EventsService {
 			return false;
 		}
 
-		$result = $this->triggerResults($name, $type, $params, $value);
+		$result = $this->triggerResults($name, $type, $params, $value, $options);
 		if ($result === false) {
 			return false;
 		}
@@ -262,7 +256,9 @@ class EventsService {
 			$result = call_user_func($callable, $params);
 		}
 
-		$this->triggerAfter($name, $type, $params, $options);
+		if ($result !== false) {
+			$this->triggerAfter($name, $type, $params, $options);
+		}
 
 		return $result;
 	}
@@ -275,16 +271,17 @@ class EventsService {
 	 * @param mixed  $object  The object involved in the event
 	 * @param string $message The deprecation message
 	 * @param string $version Human-readable *release* version: 1.9, 1.10, ...
+	 * @param array  $options (internal) options for triggering the event
 	 *
 	 * @return bool
 	 *
 	 * @see elgg_trigger_deprecated_event()
 	 */
-	public function triggerDeprecated(string $name, string $type, $object = null, string $message = '', string $version = ''): bool {
+	public function triggerDeprecated(string $name, string $type, $object = null, string $message = '', string $version = '', array $options = []): bool {
 		$message = "The '{$name}', '{$type}' event is deprecated. {$message}";
 		$this->checkDeprecation($name, $type, $message, $version);
 		
-		return $this->trigger($name, $type, $object);
+		return $this->trigger($name, $type, $object, $options);
 	}
 
 	/**
@@ -296,16 +293,17 @@ class EventsService {
 	 * @param mixed  $returnvalue The return value
 	 * @param string $message     The deprecation message
 	 * @param string $version     Human-readable *release* version: 1.9, 1.10, ...
+	 * @param array  $options     (internal) options for triggering the event
 	 *
 	 * @return mixed
 	 *
 	 * @see elgg_trigger_deprecated_event_results()
 	 */
-	public function triggerDeprecatedResults(string $name, string $type, array $params = [], $returnvalue = null, string $message = '', string $version = '') {
+	public function triggerDeprecatedResults(string $name, string $type, array $params = [], $returnvalue = null, string $message = '', string $version = '', array $options = []) {
 		$message = "The '{$name}', '{$type}' event is deprecated. {$message}";
 		$this->checkDeprecation($name, $type, $message, $version);
 		
-		return $this->triggerResults($name, $type, $params, $returnvalue);
+		return $this->triggerResults($name, $type, $params, $returnvalue, $options);
 	}
 	
 	/**
@@ -326,14 +324,9 @@ class EventsService {
 			return false;
 		}
 		
-		if (($name == 'view' || $name == 'view_vars') && $type !== 'all') {
-			$type = ViewsService::canonicalizeViewName($type);
-		}
-				
-		$services = _elgg_services();
 		if (in_array($this->getLogger()->getLevel(false), [LogLevel::WARNING, LogLevel::NOTICE, LogLevel::INFO, LogLevel::DEBUG])) {
-			if (!$services->handlers->isCallable($callback)) {
-				$this->getLogger()->warning('Handler: ' . $services->handlers->describeCallable($callback) . ' is not callable');
+			if (!$this->handlers->isCallable($callback)) {
+				$this->getLogger()->warning('Handler: ' . $this->handlers->describeCallable($callback) . ' is not callable');
 			}
 		}
 		
@@ -358,10 +351,6 @@ class EventsService {
 	 * @return void
 	 */
 	public function unregisterHandler(string $name, string $type, $callback): void {
-		if (($name === 'view' || $name === 'view_vars') && $type !== 'all') {
-			$type = ViewsService::canonicalizeViewName($type);
-		}
-		
 		if (empty($this->registrations[$name][$type])) {
 			return;
 		}
@@ -566,5 +555,56 @@ class EventsService {
 		}
 		
 		$this->logDeprecatedMessage($message, $version);
+	}
+	
+	/**
+	 * @param callable $callable Callable
+	 * @param mixed    $event    Event object
+	 * @param array    $args     Event arguments
+	 * @param array    $options  (internal) options for triggering the event
+	 *
+	 * @return array [success, result, object]
+	 */
+	protected function callHandler($callable, $event, array $args, array $options = []): array {
+		// call a function before the actual callable
+		$begin_callback = elgg_extract(self::OPTION_BEGIN_CALLBACK, $options);
+		if (is_callable($begin_callback)) {
+			call_user_func($begin_callback, [
+				'callable' => $callable,
+				'readable_callable' => $this->handlers->describeCallable($callable),
+				'event' => $event,
+				'arguments' => $args,
+			]);
+		}
+		
+		// time the callable function
+		$use_timer = (bool) elgg_extract(self::OPTION_USE_TIMER, $options, false);
+		$timer_keys = (array) elgg_extract(self::OPTION_TIMER_KEYS, $options, []);
+		if ($use_timer) {
+			$timer_keys[] = $this->handlers->describeCallable($callable);
+			$this->beginTimer($timer_keys);
+		}
+		
+		// execute the callable function
+		$results = $this->handlers->call($callable, $event, $args);
+		
+		// end the timer
+		if ($use_timer) {
+			$this->endTimer($timer_keys);
+		}
+		
+		// call a function after the actual callable
+		$end_callback = elgg_extract(self::OPTION_END_CALLBACK, $options);
+		if (is_callable($end_callback)) {
+			call_user_func($end_callback, [
+				'callable' => $callable,
+				'readable_callable' => $this->handlers->describeCallable($callable),
+				'event' => $event,
+				'arguments' => $args,
+				'results' => $results,
+			]);
+		}
+		
+		return $results;
 	}
 }

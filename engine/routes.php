@@ -150,6 +150,11 @@ return [
 			'match_on' => '\w+',
 		],
 	],
+	'security.txt' => [
+		'path' => '/security.txt',
+		'controller' => \Elgg\Controllers\SecurityTxt::class,
+		'walled' => false,
+	],
 	'settings:index' => [
 		'path' => '/settings',
 		'resource' => 'settings/account',
@@ -209,13 +214,6 @@ return [
 		'path' => '/comment/view/{guid}/{container_guid?}',
 		'controller' => \Elgg\Controllers\CommentEntityRedirector::class,
 	],
-	'edit:object:comment' => [
-		'path' => '/comment/edit/{guid}',
-		'resource' => 'comments/edit',
-		'middleware' => [
-			\Elgg\Router\Middleware\Gatekeeper::class,
-		],
-	],
 	'view:user' => [
 		'path' => '/user/{guid}',
 		'resource' => 'user/view',
@@ -245,5 +243,21 @@ return [
 			\Elgg\Router\Middleware\SignedRequestGatekeeper::class,
 		],
 		'walled' => false,
+	],
+	'trash:owner' => [
+		'path' => '/settings/trash/{username}',
+		'resource' => 'trash/owner',
+		'middleware' => [
+			\Elgg\Router\Middleware\Gatekeeper::class,
+			\Elgg\Router\Middleware\UserPageOwnerCanEditGatekeeper::class,
+		],
+	],
+	'trash:group' => [
+		'path' => '/trash/group/{guid}',
+		'resource' => 'trash/group',
+		'middleware' => [
+			\Elgg\Router\Middleware\Gatekeeper::class,
+			\Elgg\Router\Middleware\GroupPageOwnerCanEditGatekeeper::class,
+		],
 	],
 ];

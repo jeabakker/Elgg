@@ -9,25 +9,12 @@ namespace Elgg\Cache;
  */
 class EntityCache {
 
-	const MAX_SIZE = 256;
-
-	/**
-	 * @var BaseCache
-	 */
-	protected $cache;
-
-	/**
-	 * @var int
-	 */
-	protected $size = 0;
-
 	/**
 	 * Constructor
 	 *
 	 * @param BaseCache $cache Cache
 	 */
-	public function __construct(BaseCache $cache) {
-		$this->cache = $cache;
+	public function __construct(protected BaseCache $cache) {
 	}
 
 	/**
@@ -53,13 +40,7 @@ class EntityCache {
 			return;
 		}
 
-		if ($this->size > self::MAX_SIZE) {
-			// Don't store too many or we'll have memory problems
-			return;
-		}
-
 		$this->cache->save($entity->guid, $entity);
-		$this->size++;
 	}
 
 	/**
@@ -70,17 +51,7 @@ class EntityCache {
 	 * @return void
 	 */
 	public function delete(int $guid): void {
-		if (!$guid) {
-			return;
-		}
-
-		$entity = $this->cache->load($guid);
-		if (!$entity instanceof \ElggEntity) {
-			return;
-		}
-
 		$this->cache->delete($guid);
-		$this->size--;
 	}
 
 	/**
@@ -90,6 +61,5 @@ class EntityCache {
 	 */
 	public function clear(): void {
 		$this->cache->clear();
-		$this->size = 0;
 	}
 }

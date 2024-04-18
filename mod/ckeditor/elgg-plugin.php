@@ -17,6 +17,9 @@ return [
 		'elgg.css' => [
 			'ckeditor/content.css' => [],
 		],
+		'email/email.css' => [
+			'ckeditor/email_fix.css' => [],
+		],
 		'input/longtext' => [
 			'ckeditor/init' => [],
 		],
@@ -33,7 +36,7 @@ return [
 			],
 		],
 		'elgg.data' => [
-			'site' => [
+			'page' => [
 				'\Elgg\CKEditor\Views::setToolbarConfig' => [],
 			],
 		],

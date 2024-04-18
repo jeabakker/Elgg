@@ -31,6 +31,8 @@ class ElggPluginUnitTest extends \Elgg\UnitTestCase {
 		$row->enabled = 'yes';
 		$row->time_created = $plugin->time_created;
 		$row->time_updated = null;
+		$row->deleted = 'no';
+		$row->time_deleted = 0;
 
 		$constructed = new ElggPlugin($row);
 
@@ -241,7 +243,7 @@ class ElggPluginUnitTest extends \Elgg\UnitTestCase {
 		};
 
 		$upgrade = _elgg_services()->upgrades->run();
-		$upgrade->done($assert, $fail);
+		$upgrade->then($assert, $fail);
 
 		$this->assertEquals(1, $assertions);
 	}

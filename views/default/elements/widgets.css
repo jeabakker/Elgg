@@ -4,6 +4,7 @@
 .elgg-widgets-grid {
 	display: flex;
 	flex-direction: column;
+	gap: 2rem;
 }
 
 .elgg-widgets {
@@ -15,11 +16,6 @@
 	.elgg-widgets-grid {
 		flex-direction: row-reverse;
 		align-items: stretch;
-		margin: 0 -0.5rem;
-	}
-
-	.elgg-widgets {
-		padding: 0 0.5rem;
 	}
 }
 
@@ -39,6 +35,8 @@
 		margin-top: 0.5rem;
 		
 		> li {
+			display: flex;
+			justify-content: space-between;
 			padding: 0.5rem;
 			transition: background 0.2s linear;
 			border-bottom: 1px solid $(border-color-soft);
@@ -51,8 +49,9 @@
 }
 
 .elgg-widgets-add-actions {
-	max-width: 8rem;
+	max-width: 10rem;
 	text-align: right;
+	padding-left: 0.25rem;
 }
 
 .elgg-widget-single.elgg-state-available .elgg-widgets-add-actions > span,
@@ -62,8 +61,6 @@
 
 .elgg-module-widget {
 	border: 1px solid $(border-color-soft);
-	margin: 0 0 1rem 0;
-	position: relative;
 	
 	&.elgg-state-draggable {
 		&:hover {
@@ -88,25 +85,26 @@
 		width: 100%;
 	}
 	
-	.elgg-menu-widget-container {
-		display: none;
+	&:not(:hover):not(:focus-within) {
+		.elgg-menu-widget-container {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			margin: -1px;
+			border: 0;
+			padding: 0;
+			
+			white-space: nowrap;
+			
+			clip-path: inset(100%);
+			clip: rect(0 0 0 0);
+			overflow: hidden;
+		}
 	}
 	
-	&:hover .elgg-menu-widget-container {
-		display: inline-block;
+	.elgg-widget-content {
+		padding: 1rem;
 	}
-}
-
-.elgg-widget-edit {
-	display: none;
-	width: auto;
-	padding: 10px;
-	border-bottom: 1px solid $(border-color-soft);
-	background-color: $(background-color-mild);
-}
-
-.elgg-widget-content {
-	padding: 1rem;
 }
 
 .elgg-widget-placeholder {

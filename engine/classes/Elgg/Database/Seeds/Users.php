@@ -2,7 +2,9 @@
 
 namespace Elgg\Database\Seeds;
 
+use Elgg\Database\RiverTable;
 use Elgg\Database\Update;
+use Elgg\Exceptions\Seeding\MaxAttemptsException;
 
 /**
  * Seed users
@@ -36,15 +38,12 @@ class Users extends Seed {
 		}
 		
 		while ($this->getCount() < $this->limit) {
-			if ($this->create) {
+			try {
 				$user = $this->createUser([], [
 					'profile_fields' => $profile_fields,
 				]);
-			} else {
-				$user = $this->getRandomUser($exclude);
-			}
-
-			if (!$user) {
+			} catch (MaxAttemptsException $e) {
+				// unable to create a user with the given options
 				continue;
 			}
 
@@ -94,7 +93,7 @@ class Users extends Seed {
 					]);
 					/* @var $item \ElggRiverItem */
 					foreach ($river as $item) {
-						$update = Update::table('river');
+						$update = Update::table(RiverTable::TABLE_NAME);
 						$update->set('posted', $update->param($this->getRandomCreationTimestamp(), ELGG_VALUE_TIMESTAMP))
 							->where($update->compare('id', '=', $item->id, ELGG_VALUE_ID));
 						
@@ -113,7 +112,6 @@ class Users extends Seed {
 	 * {@inheritdoc}
 	 */
 	public function unseed() {
-
 		/* @var $users \ElggBatch */
 		$users = elgg_get_entities([
 			'type' => 'user',
@@ -125,10 +123,12 @@ class Users extends Seed {
 
 		/* @var $user \ElggUser */
 		foreach ($users as $user) {
-			if ($user->delete()) {
+			if ($user->delete(true, true)) {
 				$this->log("Deleted user {$user->guid}");
 			} else {
 				$this->log("Failed to delete user {$user->guid}");
+				$users->reportFailure();
+				continue;
 			}
 
 			$this->advance();

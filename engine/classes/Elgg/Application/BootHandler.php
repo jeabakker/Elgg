@@ -12,17 +12,11 @@ use Elgg\Application;
 class BootHandler {
 
 	/**
-	 * @var Application
-	 */
-	protected $app;
-
-	/**
 	 * Constructor
 	 *
 	 * @param Application $app Unbooted application
 	 */
-	public function __construct(Application $app) {
-		$this->app = $app;
+	public function __construct(protected Application $app) {
 	}
 
 	/**
@@ -133,7 +127,6 @@ class BootHandler {
 
 		$events = $this->app->internal_services->events;
 
-		$this->app->internal_services->views->clampViewtypeToPopulatedViews();
 		$this->app->allowPathRewrite();
 
 		// Complete the boot process for both engine and plugins

@@ -189,7 +189,6 @@
 .elgg-menu-owner-block {
 	background: #ffffff;
 	border: 1px solid $(border-color-soft);
-	margin-bottom: 2rem;
 
 	li:not(:last-child) {
 		border-bottom: 1px solid #f7f7f8;
@@ -361,6 +360,7 @@
 .elgg-menu-river,
 .elgg-menu-relationship,
 .elgg-menu-entity,
+.elgg-menu-entity-trash,
 .elgg-menu-social,
 .elgg-menu-annotation,
 .elgg-menu-widget {
@@ -381,7 +381,7 @@
 			}
 			
 			&:hover {
-				color: #0078ac;
+				color: $(text-color-highlight);
 				text-decoration: none;
 			}
 		}
@@ -389,6 +389,7 @@
 }
 
 .elgg-menu-entity-default,
+.elgg-menu-entity-trash-default,
 .elgg-menu-relationship-default,
 .elgg-menu-river-default {
 	.elgg-menu-item-has-dropdown {

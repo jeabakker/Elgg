@@ -21,12 +21,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class ResponseFactory {
 
 	use Loggable;
-
-	protected Request $request;
-	
-	protected AjaxService $ajax;
-	
-	protected EventsService $events;
 	
 	protected ResponseTransport $transport;
 	
@@ -41,11 +35,11 @@ class ResponseFactory {
 	 * @param AjaxService   $ajax    AJAX service
 	 * @param EventsService $events  Events service
 	 */
-	public function __construct(Request $request, AjaxService $ajax, EventsService $events) {
-		$this->request = $request;
-		$this->ajax = $ajax;
-		$this->events = $events;
-		
+	public function __construct(
+		protected Request $request,
+		protected AjaxService $ajax,
+		protected EventsService $events
+	) {
 		$this->transport = \Elgg\Application::getResponseTransport();
 		$this->headers = new ResponseHeaderBag();
 	}
@@ -254,7 +248,7 @@ class ResponseFactory {
 		
 		$is_xhr = $this->request->isXmlHttpRequest();
 
-		$is_action = str_starts_with($response_type, 'action:');
+		$is_action = $this->isAction();
 
 		if ($is_action && $response->getForwardURL() === null) {
 			// actions must always set a redirect url
@@ -265,10 +259,10 @@ class ResponseFactory {
 			$response->setForwardURL((string) $this->request->headers->get('Referer'));
 		}
 
-		if ($response->getForwardURL() !== null && !$is_xhr) {
+		if ($response->getForwardURL() !== null && !$is_xhr && !$response->isRedirection()) {
 			// non-xhr requests should issue a forward if redirect url is set
 			// unless it's an error, in which case we serve an error page
-			if ($this->isAction() || (!$response->isClientError() && !$response->isServerError())) {
+			if ($is_action || (!$response->isClientError() && !$response->isServerError())) {
 				$response->setStatusCode(ELGG_HTTP_FOUND);
 			}
 		}

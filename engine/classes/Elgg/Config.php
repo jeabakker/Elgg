@@ -95,6 +95,15 @@ use Elgg\Traits\Loggable;
  * @property bool          $remove_branding 						Is Elgg branding disabled
  * @property int           $remove_unvalidated_users_days			The number of days after which unvalidated users will be removed
  * @property bool          $require_admin_validation
+ * @property string        $security_txt_acknowledgments			Security.txt link to acknowledgments
+ * @property string        $security_txt_canonical					Security.txt canonical url
+ * @property string        $security_txt_contact					Security.txt contact information (mailto or https)
+ * @property string        $security_txt_csaf						Security.txt link to CSAF provider
+ * @property string        $security_txt_encryption					Security.txt link to encryption key for communication
+ * @property int           $security_txt_expires					Security.txt expiration date
+ * @property string        $security_txt_hiring						Security.txt link to hiring page
+ * @property string        $security_txt_language					Security.txt preferred communication language
+ * @property string        $security_txt_policy						Security.txt link to security reporting policy
  * @property bool          $security_disable_password_autocomplete
  * @property bool          $security_email_require_password
  * @property bool          $security_notify_admins
@@ -112,9 +121,10 @@ use Elgg\Traits\Loggable;
  * @property string[]      $site_featured_menu_names
  * @property bool          $subresource_integrity_enabled			Should subresources (js/css) get integrity information
  * @property bool          $system_cache_enabled					Is the system cache enabled?
- * @property bool          $system_cache_loaded
  * @property bool          $testing_mode  							Is the current application running (PHPUnit) tests
  * @property string        $time_format  							Preferred PHP time format
+ * @property bool          $trash_enabled							Is the trash feature enabled
+ * @property int           $trash_retention							Number of days before trashed content is removed from the database
  * @property bool          $user_joined_river						Do we need to create a river event when a user joins the site
  * @property string        $view         							Default viewtype (usually not set)
  * @property bool          $walled_garden							Is current site in walled garden mode?
@@ -227,6 +237,8 @@ class Config {
 		'subresource_integrity_enabled' => false,
 		'system_cache_enabled' => false,
 		'testing_mode' => false,
+		'trash_enabled' => false,
+		'trash_retention' => 30,
 		'user_joined_river' => false,
 		'webp_enabled' => true,
 		'who_can_change_language' => 'everyone',
@@ -379,7 +391,7 @@ class Config {
 			$settings_path = Paths::settingsFile(Paths::SETTINGS_PHP);
 		}
 
-		return \Elgg\Project\Paths::sanitize($settings_path, false);
+		return Paths::sanitize($settings_path, false);
 	}
 
 	/**

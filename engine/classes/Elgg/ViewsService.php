@@ -2,9 +2,7 @@
 
 namespace Elgg;
 
-use Elgg\Application\CacheHandler;
 use Elgg\Cache\SystemCache;
-use Elgg\Filesystem\Directory;
 use Elgg\Http\Request as HttpRequest;
 use Elgg\Project\Paths;
 use Elgg\Traits\Loggable;
@@ -28,70 +26,52 @@ class ViewsService {
 	 * @see ViewsService::fileExists()
 	 * @var array
 	 */
-	protected $file_exists_cache = [];
+	protected array $file_exists_cache = [];
 
 	/**
 	 * @var array
 	 *
 	 * [viewtype][view] => '/path/to/views/style.css'
 	 */
-	private $locations = [];
+	protected array $locations = [];
 
 	/**
 	 * @var array Tracks location changes for views
 	 *
 	 * [viewtype][view][] => '/path/to/views/style.css'
 	 */
-	private $overrides = [];
-
-	/**
-	 * @var array Simplecache views (view names are keys)
-	 *
-	 * [view] = true
-	 */
-	private $simplecache_views = [];
+	protected array $overrides = [];
 
 	/**
 	 * @var array
 	 *
 	 * [view][priority] = extension_view
 	 */
-	private $extensions = [];
+	protected array $extensions = [];
 
 	/**
 	 * @var string[] A list of fallback viewtypes
 	 */
-	private $fallbacks = [];
+	protected array $fallbacks = [];
 
-	/**
-	 * @var EventsService
-	 */
-	private $events;
-
-	/**
-	 * @var SystemCache|null This is set if the views are configured via cache
-	 */
-	private $cache;
-
-	/**
-	 * @var \Elgg\Http\Request
-	 */
-	private $request;
-
-	/**
-	 * @var string
-	 */
-	private $viewtype;
+	protected ?string $viewtype;
+	
+	protected bool $locations_loaded_from_cache = false;
 
 	/**
 	 * Constructor
 	 *
-	 * @param EventsService      $events  Events service
-	 * @param \Elgg\Http\Request $request Http Request
+	 * @param EventsService           $events       Events service
+	 * @param \Elgg\Http\Request      $request      Http Request
+	 * @param \Elgg\Config            $config       Elgg configuration
+	 * @param \Elgg\Cache\SystemCache $server_cache Server cache
 	 */
-	public function __construct(EventsService $events, HttpRequest $request) {
-		$this->events = $events;
-		$this->request = $request;
+	public function __construct(
+		protected EventsService $events,
+		protected HttpRequest $request,
+		protected Config $config,
+		protected SystemCache $server_cache
+	) {
 	}
 
 	/**
@@ -131,32 +111,20 @@ class ViewsService {
 	}
 
 	/**
-	 * If the current viewtype has no views, reset it to "default"
-	 *
-	 * @return void
-	 */
-	public function clampViewtypeToPopulatedViews(): void {
-		$viewtype = $this->getViewtype();
-		if (empty($this->locations[$viewtype])) {
-			$this->viewtype = 'default';
-		}
-	}
-
-	/**
 	 * Resolve the initial viewtype
 	 *
 	 * @return string
 	 */
-	private function resolveViewtype(): string {
+	protected function resolveViewtype(): string {
 		if ($this->request) {
 			$view = $this->request->getParam('view', '', false);
-			if ($this->isValidViewtype($view)) {
+			if ($this->isValidViewtype($view) && !empty($this->locations[$view])) {
 				return $view;
 			}
 		}
 
-		$view = (string) elgg_get_config('view');
-		if ($this->isValidViewtype($view)) {
+		$view = (string) $this->config->view;
+		if ($this->isValidViewtype($view) && !empty($this->locations[$view])) {
 			return $view;
 		}
 
@@ -180,35 +148,6 @@ class ViewsService {
 		}
 
 		return true;
-	}
-
-	/**
-	 * Takes a view name and returns the canonical name for that view.
-	 *
-	 * @param string $alias The possibly non-canonical view name.
-	 *
-	 * @return string The canonical view name.
-	 */
-	public static function canonicalizeViewName(string $alias): string {
-
-		$canonical = $alias;
-
-		$extension = pathinfo($canonical, PATHINFO_EXTENSION);
-		$hasValidFileExtension = isset(CacheHandler::$extensions[$extension]);
-
-		if (str_starts_with($canonical, 'js/')) {
-			$canonical = substr($canonical, 3);
-			if (!$hasValidFileExtension) {
-				$canonical .= '.js';
-			}
-		} else if (str_starts_with($canonical, 'css/')) {
-			$canonical = substr($canonical, 4);
-			if (!$hasValidFileExtension) {
-				$canonical .= '.css';
-			}
-		}
-
-		return $canonical;
 	}
 
 	/**
@@ -285,33 +224,6 @@ class ViewsService {
 	}
 
 	/**
-	 * Set an alternative base location for a view
-	 *
-	 * @param string $view     Name of the view
-	 * @param string $location Full path to the view file
-	 * @param string $viewtype The viewtype to register this under
-	 *
-	 * @return void
-	 *
-	 * @see elgg_set_view_location()
-	 */
-	public function setViewDir(string $view, string $location, string $viewtype = ''): void {
-		$view = self::canonicalizeViewName($view);
-
-		if (empty($viewtype)) {
-			$viewtype = 'default';
-		}
-
-		$location = rtrim($location, '/\\');
-
-		if ($this->fileExists("$location/$viewtype/$view.php")) {
-			$this->setViewLocation($view, $viewtype, "$location/$viewtype/$view.php");
-		} else if ($this->fileExists("$location/$viewtype/$view")) {
-			$this->setViewLocation($view, $viewtype, "$location/$viewtype/$view");
-		}
-	}
-
-	/**
 	 * Register a viewtype to fall back to a default view if a view isn't
 	 * found for that viewtype.
 	 *
@@ -349,8 +261,6 @@ class ViewsService {
 	 * @see elgg_view()
 	 */
 	public function renderDeprecatedView(string $view, array $vars, string $suggestion, string $version): string {
-		$view = self::canonicalizeViewName($view);
-
 		$rendered = $this->renderView($view, $vars, '', false);
 		if ($rendered) {
 			$this->logDeprecatedMessage("The '{$view}' view has been deprecated. {$suggestion}", $version);
@@ -385,9 +295,7 @@ class ViewsService {
 	 *
 	 * @see elgg_view()
 	 */
-	public function renderView(string $view, array $vars = [], string $viewtype = '', bool $issue_missing_notice = true, array $extensions_tree = []): string {
-		$view = self::canonicalizeViewName($view);
-
+	public function renderView(string $view, array $vars = [], string $viewtype = '', bool $issue_missing_notice = null, array $extensions_tree = []): string {
 		// basic checking for bad paths
 		if (str_contains($view, '..')) {
 			return '';
@@ -405,6 +313,10 @@ class ViewsService {
 		// Get the current viewtype
 		if ($viewtype === '' || !$this->isValidViewtype($viewtype)) {
 			$viewtype = $this->getViewtype();
+		}
+		
+		if (!isset($issue_missing_notice)) {
+			$issue_missing_notice = $viewtype === 'default';
 		}
 
 		// allow altering $vars
@@ -481,7 +393,7 @@ class ViewsService {
 	 *
 	 * @return string|false output generated by view file inclusion or false
 	 */
-	private function renderViewFile(string $view, array $vars, string $viewtype, bool $issue_missing_notice): string|false {
+	protected function renderViewFile(string $view, array $vars, string $viewtype, bool $issue_missing_notice): string|false {
 		$file = $this->findViewFile($view, $viewtype);
 		if (!$file) {
 			if ($issue_missing_notice) {
@@ -520,8 +432,6 @@ class ViewsService {
 	 * @see elgg_view_exists()
 	 */
 	public function viewExists(string $view, string $viewtype = '', bool $recurse = true): bool {
-		$view = self::canonicalizeViewName($view);
-
 		if (empty($view)) {
 			return false;
 		}
@@ -568,9 +478,6 @@ class ViewsService {
 	 * @see elgg_extend_view()
 	 */
 	public function extendView(string $view, string $view_extension, int $priority = 501): void {
-		$view = self::canonicalizeViewName($view);
-		$view_extension = self::canonicalizeViewName($view_extension);
-
 		if ($view === $view_extension) {
 			// do not allow direct extension on self with self
 			return;
@@ -600,9 +507,6 @@ class ViewsService {
 	 * @see elgg_unextend_view()
 	 */
 	public function unextendView(string $view, string $view_extension): bool {
-		$view = self::canonicalizeViewName($view);
-		$view_extension = self::canonicalizeViewName($view_extension);
-
 		if (!isset($this->extensions[$view])) {
 			return false;
 		}
@@ -621,71 +525,22 @@ class ViewsService {
 	}
 
 	/**
-	 * Register a view a cacheable
+	 * Register all views in a given path
 	 *
-	 * @param string $view the view name
-	 *
-	 * @return void
-	 */
-	public function registerCacheableView(string $view): void {
-		$view = self::canonicalizeViewName($view);
-
-		$this->simplecache_views[$view] = true;
-	}
-
-	/**
-	 * Is the view cacheable
-	 *
-	 * @param string $view the view name
+	 * @param string $path Base path to scan for views
 	 *
 	 * @return bool
 	 */
-	public function isCacheableView(string $view): bool {
-		$view = self::canonicalizeViewName($view);
-		if (isset($this->simplecache_views[$view])) {
-			return true;
-		}
-
-		// build list of viewtypes to check
-		$current_viewtype = $this->getViewtype();
-		$viewtypes = [$current_viewtype];
-
-		if ($this->doesViewtypeFallback($current_viewtype) && $current_viewtype != 'default') {
-			$viewtypes[] = 'default';
-		}
-
-		// If a static view file is found in any viewtype, it's considered cacheable
-		foreach ($viewtypes as $viewtype) {
-			$file = $this->findViewFile($view, $viewtype);
-
-			if ($file && pathinfo($file, PATHINFO_EXTENSION) !== 'php') {
-				$this->simplecache_views[$view] = true;
-
-				return true;
-			}
-		}
-
-		// Assume not-cacheable by default
-		return false;
-	}
-
-	/**
-	 * Register a plugin's views
-	 *
-	 * @param string $path Base path of the plugin
-	 *
-	 * @return bool
-	 */
-	public function registerPluginViews(string $path): bool {
+	public function registerViewsFromPath(string $path): bool {
 		$path = Paths::sanitize($path);
 		$view_dir = "{$path}views/";
 
-		// plugins don't have to have views.
+		// do not fail on non existing views folder
 		if (!is_dir($view_dir)) {
 			return true;
 		}
 
-		// but if they do, they have to be readable
+		// but if folder exists it has to be readable
 		$handle = opendir($view_dir);
 		if ($handle === false) {
 			$this->getLogger()->notice("Unable to register views from the directory: {$view_dir}");
@@ -726,7 +581,7 @@ class ViewsService {
 				foreach ($paths as $path) {
 					if (!preg_match('~^([/\\\\]|[a-zA-Z]\:)~', $path)) {
 						// relative path
-						$path = Directory\Local::projectRoot()->getPath($path);
+						$path = Paths::project() . $path;
 					}
 
 					if (str_ends_with($view, '/')) {
@@ -763,65 +618,99 @@ class ViewsService {
 	public function getInspectorData(): array {
 		$overrides = $this->overrides;
 
-		if ($this->cache) {
-			$data = $this->cache->load('view_overrides');
+		if ($this->server_cache) {
+			$data = $this->server_cache->load('view_overrides');
 			if (is_array($data)) {
 				$overrides = $data;
 			}
 		}
-
+		
 		return [
 			'locations' => $this->locations,
 			'overrides' => $overrides,
 			'extensions' => $this->extensions,
-			'simplecache' => $this->simplecache_views,
+			'simplecache' => _elgg_services()->simpleCache->getCacheableViews(),
 		];
 	}
 
 	/**
 	 * Configure locations from the cache
 	 *
-	 * @param SystemCache $cache The system cache
-	 *
-	 * @return bool
+	 * @return void
 	 */
-	public function configureFromCache(SystemCache $cache): bool {
-		$data = $cache->load('view_locations');
-		if (!is_array($data)) {
-			return false;
+	public function configureFromCache(): void {
+		if (!$this->server_cache->isEnabled()) {
+			return;
 		}
 		
-		// format changed, check version
-		if (empty($data['version']) || $data['version'] !== '2.0') {
-			return false;
+		$data = $this->server_cache->load('view_locations');
+		if (!is_array($data)) {
+			return;
 		}
 		
 		$this->locations = $data['locations'];
-		$this->cache = $cache;
-
-		return true;
+		$this->locations_loaded_from_cache = true;
 	}
 
 	/**
 	 * Cache the configuration
 	 *
-	 * @param SystemCache $cache The system cache
-	 *
 	 * @return void
 	 */
-	public function cacheConfiguration(SystemCache $cache): void {
-		if (empty($this->locations)) {
-			$cache->delete('view_locations');
+	public function cacheConfiguration(): void {
+		if (!$this->server_cache->isEnabled()) {
 			return;
 		}
 		
-		$cache->save('view_locations', [
-			'version' => '2.0',
-			'locations' => $this->locations,
-		]);
+		// only cache if not already loaded
+		if ($this->isViewLocationsLoadedFromCache()) {
+			return;
+		}
+		
+		if (empty($this->locations)) {
+			$this->server_cache->delete('view_locations');
+			return;
+		}
+		
+		$this->server_cache->save('view_locations', ['locations' => $this->locations]);
 
 		// this is saved just for the inspector and is not loaded in loadAll()
-		$cache->save('view_overrides', $this->overrides);
+		$this->server_cache->save('view_overrides', $this->overrides);
+	}
+	
+	/**
+	 * Checks if view_locations have been loaded from cache.
+	 * This can be used to determine if there is a need to (re)load view locations
+	 *
+	 * @return bool
+	 */
+	public function isViewLocationsLoadedFromCache(): bool {
+		return $this->locations_loaded_from_cache;
+	}
+	
+	/**
+	 * Returns an array of names of ES modules detected based on view location
+	 *
+	 * @return array
+	 */
+	public function getESModules(): array {
+		$modules = $this->server_cache->load('esmodules');
+		if (is_array($modules)) {
+			return $modules;
+		}
+		
+		$modules = [];
+		foreach ($this->locations['default'] as $name => $path) {
+			if (!str_ends_with($name, '.mjs')) {
+				continue;
+			}
+			
+			$modules[] = $name;
+		}
+		
+		$this->server_cache->save('esmodules', $modules);
+		
+		return $modules;
 	}
 
 	/**
@@ -833,8 +722,7 @@ class ViewsService {
 	 *
 	 * @return void
 	 */
-	private function setViewLocation(string $view, string $viewtype, string $path): void {
-		$view = self::canonicalizeViewName($view);
+	protected function setViewLocation(string $view, string $viewtype, string $path): void {
 		$path = strtr($path, '\\', '/');
 
 		if (isset($this->locations[$viewtype][$view]) && $path !== $this->locations[$viewtype][$view]) {
@@ -845,6 +733,6 @@ class ViewsService {
 
 		// Test if view is cacheable and push it to the cacheable views stack,
 		// if it's not registered as cacheable explicitly
-		$this->isCacheableView($view);
+		_elgg_services()->simpleCache->isCacheableView($view);
 	}
 }

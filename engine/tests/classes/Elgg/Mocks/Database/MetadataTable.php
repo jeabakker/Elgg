@@ -8,7 +8,6 @@ use Elgg\Database\Insert;
 use Elgg\Database\MetadataTable as DbMetadataTabe;
 use Elgg\Database\Select;
 use Elgg\Database\Update;
-use ElggMetadata;
 
 class MetadataTable extends DbMetadataTabe {
 
@@ -31,7 +30,7 @@ class MetadataTable extends DbMetadataTabe {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function create(ElggMetadata $metadata, bool $allow_multiple = false): int|false {
+	public function create(\ElggMetadata $metadata, bool $allow_multiple = false): int|false {
 		if (!isset($metadata->value) || !isset($metadata->entity_guid)) {
 			elgg_log("Metadata must have a value and entity guid", 'ERROR');
 			return false;
@@ -101,7 +100,7 @@ class MetadataTable extends DbMetadataTabe {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function update(ElggMetadata $metadata): bool {
+	public function update(\ElggMetadata $metadata): bool {
 		if (!$this->entityTable->exists($metadata->entity_guid)) {
 			elgg_log("Can't updated metadata to a non-existing entity_guid", 'ERROR');
 			return false;
@@ -144,7 +143,6 @@ class MetadataTable extends DbMetadataTabe {
 	 * {@inheritdoc}
 	 */
 	public function getRowsForGuids(array $guids): array {
-		
 		$rows = [];
 		foreach ($this->rows as $row) {
 			if (in_array($row->entity_guid, $guids)) {
@@ -156,9 +154,42 @@ class MetadataTable extends DbMetadataTabe {
 	}
 
 	/**
+	 * {@inheritdoc}
+	 */
+	public function deleteAll(array $options): bool {
+		$guids = elgg_extract('guids', $options, (array) elgg_extract('guid', $options));
+		
+		$rows = [];
+		foreach ($this->rows as $row) {
+			if (empty($guids) || in_array($row->entity_guid, $guids)) {
+				$rows[] = $row;
+			}
+		}
+		
+		if (empty($rows)) {
+			return parent::deleteAll($options);
+		}
+		
+		$names = elgg_extract('metadata_names', $options, (array) elgg_extract('metadata_name', $options));
+		if (!empty($names)) {
+			$rows = array_filter($rows, function($row) use ($names) {
+				return in_array($row->name, $names);
+			});
+		}
+		
+		foreach ($rows as $row) {
+			unset($this->rows[$row->id]);
+			$this->clearQuerySpecs($row);
+		}
+		
+		return parent::deleteAll($options);
+	}
+	
+	/**
 	 * Clear query specs
 	 *
 	 * @param \stdClass $row Data row
+	 *
 	 * @return void
 	 */
 	protected function clearQuerySpecs(\stdClass $row) {
@@ -178,10 +209,9 @@ class MetadataTable extends DbMetadataTabe {
 	 * @return void
 	 */
 	protected function addQuerySpecs(\stdClass $row) {
-
 		$this->clearQuerySpecs($row);
 
-		$qb = Select::fromTable('metadata');
+		$qb = Select::fromTable(self::TABLE_NAME);
 		$qb->select('*');
 
 		$where = new MetadataWhereClause();
@@ -200,7 +230,7 @@ class MetadataTable extends DbMetadataTabe {
 		]);
 
 		// getIDsByName
-		$qb = Select::fromTable('metadata');
+		$qb = Select::fromTable(self::TABLE_NAME);
 		$qb->select('id');
 		$qb->where($qb->compare('entity_guid', '=', $row->entity_guid, ELGG_VALUE_INTEGER))
 			->andWhere($qb->compare('name', '=', $row->name, ELGG_VALUE_STRING));
@@ -216,7 +246,7 @@ class MetadataTable extends DbMetadataTabe {
 			},
 		]);
 		
-		$qb = Insert::intoTable('metadata');
+		$qb = Insert::intoTable(self::TABLE_NAME);
 		$qb->values([
 			'name' => $qb->param($row->name, ELGG_VALUE_STRING),
 			'entity_guid' => $qb->param($row->entity_guid, ELGG_VALUE_INTEGER),
@@ -231,7 +261,7 @@ class MetadataTable extends DbMetadataTabe {
 			'insert_id' => $row->id,
 		]);
 
-		$qb = Update::table('metadata');
+		$qb = Update::table(self::TABLE_NAME);
 		$qb->set('name', $qb->param($row->name, ELGG_VALUE_STRING))
 			->set('value', $qb->param($row->value, $row->value_type === 'integer' ? ELGG_VALUE_INTEGER : ELGG_VALUE_STRING))
 			->set('value_type', $qb->param($row->value_type, ELGG_VALUE_STRING))
@@ -248,7 +278,7 @@ class MetadataTable extends DbMetadataTabe {
 			},
 		]);
 
-		$qb = Delete::fromTable('metadata');
+		$qb = Delete::fromTable(self::TABLE_NAME);
 		$qb->where($qb->compare('id', '=', $row->id, ELGG_VALUE_INTEGER));
 
 		$this->query_specs[$row->id][] = $this->db->addQuerySpec([

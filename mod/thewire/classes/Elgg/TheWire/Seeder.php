@@ -2,6 +2,7 @@
 
 namespace Elgg\TheWire;
 
+use Elgg\Database\RiverTable;
 use Elgg\Database\Seeds\Seed;
 use Elgg\Database\Update;
 
@@ -46,7 +47,7 @@ class Seeder extends Seed {
 			]);
 			/* @var $item \ElggRiverItem */
 			foreach ($river as $item) {
-				$update = Update::table('river');
+				$update = Update::table(RiverTable::TABLE_NAME);
 				$update->set('posted', $update->param($entity->time_created, ELGG_VALUE_TIMESTAMP))
 					->where($update->compare('id', '=', $item->id, ELGG_VALUE_ID));
 				
@@ -57,7 +58,7 @@ class Seeder extends Seed {
 		};
 		
 		while ($this->getCount() < $this->limit) {
-			$owner = $this->getRandomUser([], true);
+			$owner = $this->getRandomUser();
 
 			$wire_guid = thewire_save_post($this->faker()->text($max_chars), $owner->guid, $this->getRandomAccessId($owner));
 			if ($wire_guid === false) {
@@ -95,7 +96,6 @@ class Seeder extends Seed {
 	 * {@inheritdoc}
 	 */
 	public function unseed() {
-
 		/* @var $entities \ElggBatch */
 		$entities = elgg_get_entities([
 			'type' => 'object',
@@ -108,10 +108,12 @@ class Seeder extends Seed {
 
 		/* @var $entity \ElggWire */
 		foreach ($entities as $entity) {
-			if ($entity->delete()) {
+			if ($entity->delete(true, true)) {
 				$this->log("Deleted wire post {$entity->guid}");
 			} else {
 				$this->log("Failed to delete wire post {$entity->guid}");
+				$entities->reportFailure();
+				continue;
 			}
 
 			$this->advance();
