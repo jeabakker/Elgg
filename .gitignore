@@ -6,6 +6,7 @@
 /composer.phar
 /cache
 /caches/
+/phpstan.neon
 /phpunit.xml
 
 # don't ignore example settings

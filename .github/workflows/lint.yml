@@ -91,3 +91,38 @@ jobs:
 
       - name: Check encoding of Plugin language files
         run: echo '! find ./mod/*/languages/ -name "*.php" -type f -exec file --mime {} \; | grep -v "charset=utf-8$" | grep -v "charset=us-ascii$"' | bash
+
+  phpstan:
+    name: PHPStan Static Analysis (experimental)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          extensions: gd,pdo,xml,json,memcached,redis-5.3.7,mysqli,pdo_mysql,libxml,mbstring,intl
+          ini-values: max_execution_time=180,zend.enable_gc=0
+
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> ${GITHUB_OUTPUT}
+
+      - name: Restore Composer Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Composer install
+        run: composer install
+
+      - name: Run PHPStan
+        uses: php-actions/phpstan@v3
+        with:
+          memory_limit: 1G

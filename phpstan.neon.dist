@@ -1,0 +1,33 @@
+parameters:
+	level: 5
+	paths:
+		- actions
+		- engine
+		- install
+		- mod
+		- views
+	excludePaths:
+		analyse:
+			- engine/vendor_classes/*
+			- mod/*/languages/*
+			- mod/*/vendor/*
+		analyseAndScan:
+			- engine/tests/*
+			- mod/*/tests/*
+	ignoreErrors:
+		-
+			message: '/Variable \$vars might not be defined./'
+			paths:
+				- views/*
+				- mod/*/views/*
+		-
+			message: '/Variable \$request might not be defined./'
+			paths:
+				- actions/*
+				- mod/*/actions/*
+	universalObjectCratesClasses:
+		- ElggEntity
+		- ElggExtender
+		- ElggRiverItem
+		- Elgg\Config
+		- Elgg\Database\QueryOptions

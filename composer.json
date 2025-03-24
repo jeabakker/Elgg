@@ -100,7 +100,8 @@
         "elgg/sniffs": "dev-master",
         "phpunit/phpunit": "~10.5",
         "phpdocumentor/reflection-docblock": "^5.2",
-        "scrutinizer/ocular": "^1.9"
+        "scrutinizer/ocular": "^1.9",
+        "phpstan/phpstan": "^2.1"
     },
     "repositories": [
         {
