@@ -2,9 +2,10 @@
 
 namespace Elgg\Assets;
 
+use Elgg\Cache\ServerCache;
 use Elgg\Cache\SimpleCache;
-use Elgg\Cache\SystemCache;
 use Elgg\Config;
+use Elgg\Exceptions\InvalidArgumentException;
 use Elgg\Http\Urls;
 use Elgg\ViewsService;
 
@@ -16,10 +17,7 @@ use Elgg\ViewsService;
  */
 class ExternalFiles {
 
-	/**
-	 * @var array
-	 */
-	protected $files = [];
+	protected array $files = [];
 
 	/**
 	 * Subresource integrity data (loaded on first use)
@@ -29,45 +27,21 @@ class ExternalFiles {
 	protected $sri;
 	
 	/**
-	 * @var Config
-	 */
-	protected $config;
-	
-	/**
-	 * @var Urls
-	 */
-	protected $urls;
-	
-	/**
-	 * @var ViewsService
-	 */
-	protected $views;
-	
-	/**
-	 * @var SimpleCache
-	 */
-	protected $simpleCache;
-	
-	/**
-	 * @var SystemCache
-	 */
-	protected $serverCache;
-	
-	/**
 	 * Constructor
 	 *
 	 * @param Config       $config      config
 	 * @param Urls         $urls        urls service
 	 * @param ViewsService $views       views service
 	 * @param SimpleCache  $simpleCache simplecache
-	 * @param SystemCache  $serverCache server cache
+	 * @param ServerCache  $serverCache server cache
 	 */
-	public function __construct(Config $config, Urls $urls, ViewsService $views, SimpleCache $simpleCache, SystemCache $serverCache) {
-		$this->config = $config;
-		$this->urls = $urls;
-		$this->views = $views;
-		$this->simpleCache = $simpleCache;
-		$this->serverCache = $serverCache;
+	public function __construct(
+		protected Config $config,
+		protected Urls $urls,
+		protected ViewsService $views,
+		protected SimpleCache $simpleCache,
+		protected ServerCache $serverCache
+	) {
 	}
 
 	/**
@@ -78,12 +52,13 @@ class ExternalFiles {
 	 * @param string $url      URL
 	 * @param string $location Location in the page to include the file
 	 *
-	 * @return bool
+	 * @return void
+	 * @throws InvalidArgumentException
 	 */
-	public function register(string $type, string $name, string $url, string $location): bool {
+	public function register(string $type, string $name, string $url, string $location): void {
 		$name = trim(strtolower($name));
 		if (empty($name) || empty($url)) {
-			return false;
+			throw new InvalidArgumentException('$name and $url are not allowed to be empty');
 		}
 	
 		$url = $this->urls->normalizeUrl($url);
@@ -106,8 +81,6 @@ class ExternalFiles {
 		}
 
 		$this->files[$type][$name] = $item;
-	
-		return true;
 	}
 	
 	/**
@@ -116,19 +89,14 @@ class ExternalFiles {
 	 * @param string $type Type of file: js or css
 	 * @param string $name The identifier of the file
 	 *
-	 * @return bool
+	 * @return void
 	 */
-	public function unregister(string $type, string $name): bool {
+	public function unregister(string $type, string $name): void {
 		$this->setupType($type);
 		
 		$name = trim(strtolower($name));
-	
-		if (!isset($this->files[$type][$name])) {
-			return false;
-		}
-		
+
 		unset($this->files[$type][$name]);
-		return true;
 	}
 
 	/**
@@ -222,9 +190,9 @@ class ExternalFiles {
 	 *
 	 * @param string $type     type of resource
 	 * @param string $resource name of resource
-	 * @return string|NULL
+	 * @return string|null
 	 */
-	protected function getSubResourceIntegrity(string $type, string $resource): ?string {
+	public function getSubResourceIntegrity(string $type, string $resource): ?string {
 		if (!$this->config->subresource_integrity_enabled) {
 			return null;
 		}

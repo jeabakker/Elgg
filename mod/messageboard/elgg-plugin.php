@@ -1,6 +1,6 @@
 <?php
 
-require_once(__DIR__ . '/lib/functions.php');
+use Elgg\MessageBoard\Notifications\CreateMessageboardNotificationHandler;
 
 return [
 	'plugin' => [
@@ -30,6 +30,15 @@ return [
 		'entity:url' => [
 			'object' => [
 				'Elgg\MessageBoard\Widgets::widgetURL' => [],
+			],
+		],
+	],
+	'notifications' => [
+		'annotation' => [
+			'messageboard' => [
+				'create:after' => [
+					CreateMessageboardNotificationHandler::class => [],
+				],
 			],
 		],
 	],

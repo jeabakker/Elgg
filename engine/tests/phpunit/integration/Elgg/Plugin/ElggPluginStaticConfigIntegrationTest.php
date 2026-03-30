@@ -3,6 +3,7 @@
 namespace Elgg\Plugin;
 
 use Elgg\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ElggPluginStaticConfigIntegrationTest extends IntegrationTestCase {
 
@@ -18,6 +19,8 @@ class ElggPluginStaticConfigIntegrationTest extends IntegrationTestCase {
 		$this->createApplication([
 			'isolate' => true,
 		]);
+		
+		_elgg_services()->reset('views'); // needed to make sure views will get loaded correctly
 		
 		$this->plugin = \ElggPlugin::fromId('static_config', $this->normalizeTestFilePath('mod/'));
 		$this->plugin->autoload();
@@ -42,14 +45,10 @@ class ElggPluginStaticConfigIntegrationTest extends IntegrationTestCase {
 	public function testBootstrapRegistration() {
 		$this->assertInstanceOf(\Elgg\StaticConfig\Bootstrap::class, $this->plugin->getBootstrap());
 	}
-	
-	/**
-	 * @dataProvider viewsRegistrationProvider
-	 */
+
+	#[DataProvider('viewsRegistrationProvider')]
 	public function testViewsRegistration(string $view_name, string $expected_view_output) {
 		$this->assertFalse(elgg_view_exists($view_name));
-		
-		elgg_set_config('system_cache_loaded', false);
 		
 		$this->invokeInaccessableMethod($this->plugin, 'registerViews');
 		
@@ -57,7 +56,7 @@ class ElggPluginStaticConfigIntegrationTest extends IntegrationTestCase {
 		$this->assertEquals($expected_view_output, elgg_view($view_name));
 	}
 		
-	public function viewsRegistrationProvider() {
+	public static function viewsRegistrationProvider() {
 		return [
 			['custom_view', 'custom view'],
 			['custom_directory/view1', 'view1'],
@@ -205,26 +204,26 @@ class ElggPluginStaticConfigIntegrationTest extends IntegrationTestCase {
 	
 	public function testViewOptionsRegistration() {
 		$ajax = _elgg_services()->ajax;
-		$views = _elgg_services()->views;
+		$cache = _elgg_services()->simpleCache;
 		
 		$this->invokeInaccessableMethod($this->plugin, 'registerViews');
 		
 		$ajax->registerView('static_config/view');
 		
 		$this->assertNotContains('static_config/viewoptions', $ajax->getViews());
-		$this->assertFalse($views->isCacheableView('static_config/viewoptions'));
+		$this->assertFalse($cache->isCacheableView('static_config/viewoptions'));
 		
 		$this->invokeInaccessableMethod($this->plugin, 'registerViewOptions');
 		
 		$this->assertNotContains('static_config/view', $ajax->getViews());
 		$this->assertContains('static_config/viewoptions', $ajax->getViews());
-		$this->assertTrue($views->isCacheableView('static_config/viewoptions'));
+		$this->assertTrue($cache->isCacheableView('static_config/viewoptions'));
 	}
 	
 	public function testNotificationsRegistration() {
 		$notifications = _elgg_services()->notifications;
 		
-		$notifications->registerEvent('object', 'static_config_subtype', ['update']);
+		$notifications->registerEvent('object', 'static_config_subtype', 'update');
 		
 		$events = $notifications->getEvents();
 		$this->assertArrayHasKey('object', $events);

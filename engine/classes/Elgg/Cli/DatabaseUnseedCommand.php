@@ -30,15 +30,15 @@ class DatabaseUnseedCommand extends Command {
 	 * {@inheritdoc}
 	 */
 	protected function command() {
-
 		if (!class_exists('\Faker\Generator')) {
-			elgg_log(elgg_echo('cli:database:seed:log:error:faker'), 'ERROR');
+			elgg_log(elgg_echo('cli:database:seed:log:error:faker'), \Psr\Log\LogLevel::ERROR);
 			return self::FAILURE;
 		}
 
 		set_time_limit(0);
 
-		_elgg_services()->set('mailer', new \Laminas\Mail\Transport\InMemory());
+		_elgg_services()->set('mailer_transport', new \Symfony\Component\Mailer\Transport\NullTransport());
+		_elgg_services()->reset('mailer');
 
 		$options = [
 			'type' => $this->option('type'),
@@ -47,7 +47,7 @@ class DatabaseUnseedCommand extends Command {
 		try {
 			_elgg_services()->seeder->unseed($options);
 		} catch (\Exception $e) {
-			elgg_log($e->getMessage(), 'ERROR');
+			elgg_log($e->getMessage(), \Psr\Log\LogLevel::ERROR);
 			return $e->getCode() ?: 3;
 		}
 

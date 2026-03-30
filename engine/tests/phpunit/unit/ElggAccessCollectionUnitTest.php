@@ -1,12 +1,11 @@
 <?php
 
 use Elgg\UnitTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ElggAccessCollectionUnitTest extends UnitTestCase {
 	
-	/**
-	 * @dataProvider invalidValuesProvider
-	 */
+	#[DataProvider('invalidValuesProvider')]
 	public function testSetterWithInvalidValues($name, $value) {
 		$acl = new \ElggAccessCollection();
 		
@@ -14,7 +13,7 @@ class ElggAccessCollectionUnitTest extends UnitTestCase {
 		$acl->$name = $value;
 	}
 	
-	public function invalidValuesProvider() {
+	public static function invalidValuesProvider() {
 		return [
 			['subtype', str_repeat('a', 300)],
 			['name', ''],

@@ -19,7 +19,7 @@ if (strncmp($reply_title, 'RE:', 3) != 0) {
 $fields = [
 	[
 		'#type' => 'hidden',
-		'name' => 'recipients[]',
+		'name' => 'recipient',
 		'value' => $message->fromId,
 	],
 	[
@@ -49,7 +49,7 @@ foreach ($fields as $field) {
 
 $footer = elgg_view_field([
 	'#type' => 'submit',
-	'value' => elgg_echo('send'),
+	'text' => elgg_echo('send'),
 ]);
 
 elgg_set_form_footer($footer);

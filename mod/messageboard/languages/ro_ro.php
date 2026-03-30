@@ -6,13 +6,11 @@
  */
 
 return array(
-
+	
 	/**
 	 * Menu items and titles
 	 */
-
 	'messageboard:board' => "Tabla de mesaje",
-	'messageboard:none' => "Încă nu există ceva pe această tablă de mesaje",
 	'messageboard:num_display' => "Numărul de mesaje pentru afișare",
 	'messageboard:owner' => 'Tabla de mesaje a utilizatorului %s',
 	'messageboard:owner_history' => 'Postări de către %s pe tabla de mesaje a utilizatorului %s',

@@ -1,5 +1,7 @@
 <?php
 
+use Elgg\Controllers\GenericContentListing;
+use Elgg\File\FieldsHandler;
 use Elgg\File\Forms\PrepareFields;
 use Elgg\File\GroupToolContainerLogicCheck;
 use Elgg\File\Notifications\CreateFileEventHandler;
@@ -17,36 +19,51 @@ return [
 			'subtype' => 'file',
 			'capabilities' => [
 				'commentable' => true,
+				'river_emittable' => true,
 				'searchable' => true,
+				'subscribable' => true,
 				'likable' => true,
+				'restorable' => true,
 			],
 		],
 	],
-	'upgrades' => [
-		'Elgg\File\Upgrades\MoveFiles',
-	],
 	'actions' => [
-		'file/upload' => [],
+		'file/edit' => [
+			'controller' => \Elgg\File\Controllers\EditAction::class,
+			'options' => [
+				'entity_type' => 'object',
+				'entity_subtype' => 'file',
+			],
+		],
 	],
 	'routes' => [
 		'default:object:file' => [
 			'path' => '/file',
-			'resource' => 'file/all',
+			'controller' => GenericContentListing::class,
+			'options' => [
+				'sidebar_view' => 'file/sidebar',
+			],
 		],
 		'collection:object:file:all' => [
 			'path' => '/file/all',
-			'resource' => 'file/all',
+			'controller' => GenericContentListing::class,
+			'options' => [
+				'sidebar_view' => 'file/sidebar',
+			],
 		],
 		'collection:object:file:owner' => [
 			'path' => '/file/owner/{username}',
-			'resource' => 'file/owner',
+			'controller' => GenericContentListing::class,
+			'options' => [
+				'sidebar_view' => 'file/sidebar',
+			],
 			'middleware' => [
 				\Elgg\Router\Middleware\UserPageOwnerGatekeeper::class,
 			],
 		],
 		'collection:object:file:friends' => [
 			'path' => '/file/friends/{username}',
-			'resource' => 'file/friends',
+			'controller' => GenericContentListing::class,
 			'required_plugins' => [
 				'friends',
 			],
@@ -56,12 +73,13 @@ return [
 		],
 		'collection:object:file:group' => [
 			'path' => '/file/group/{guid}',
-			'resource' => 'file/group',
+			'controller' => GenericContentListing::class,
+			'options' => [
+				'group_tool' => 'file',
+				'sidebar_view' => 'file/sidebar',
+			],
 			'required_plugins' => [
 				'groups',
-			],
-			'middleware' => [
-				\Elgg\Router\Middleware\GroupPageOwnerGatekeeper::class,
 			],
 		],
 		'add:object:file' => [
@@ -95,8 +113,18 @@ return [
 				'Elgg\File\Icons::setIconSizes' => [],
 			],
 		],
+		'entity:url' => [
+			'object:widget' => [
+				'Elgg\File\Widgets::filerepoWidgetURL' => [],
+			],
+		],
+		'fields' => [
+			'object:file' => [
+				FieldsHandler::class => [],
+			],
+		],
 		'form:prepare:fields' => [
-			'file/upload' => [
+			'file/edit' => [
 				PrepareFields::class => [],
 			],
 		],
@@ -107,9 +135,6 @@ return [
 			],
 			'menu:site' => [
 				'Elgg\File\Menus\Site::register' => [],
-			],
-			'menu:title:object:file' => [
-				\Elgg\Notifications\RegisterSubscriptionMenuItemsHandler::class => [],
 			],
 		],
 		'seeds' => [
@@ -140,8 +165,12 @@ return [
 	'notifications' => [
 		'object' => [
 			'file' => [
-				'create' => CreateFileEventHandler::class,
-				'mentions' => \Elgg\Notifications\MentionsEventHandler::class,
+				'create' => [
+					CreateFileEventHandler::class => [],
+				],
+				'mentions' => [
+					\Elgg\Notifications\Handlers\Mentions::class => [],
+				],
 			],
 		],
 	],

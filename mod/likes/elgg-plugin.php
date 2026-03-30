@@ -4,8 +4,10 @@ require_once(__DIR__ . '/lib/functions.php');
 
 return [
 	'plugin' => [
-		'name' => 'Likes',
 		'activate_on_install' => true,
+	],
+	'settings' => [
+		'details' => 0,
 	],
 	'actions' => [
 		'likes/add' => [],
@@ -20,9 +22,9 @@ return [
 		],
 	],
 	'events' => [
-		'ajax_response' => [
+		'ajax_results' => [
 			'all' => [
-				Elgg\Likes\AjaxResponseHandler::class => [],
+				\Elgg\Likes\AjaxResponseHandler::class => [],
 			],
 		],
 		'delete' => [
@@ -40,8 +42,8 @@ return [
 			],
 		],
 		'elgg.data' => [
-			'site' => [
-				Elgg\Likes\JsConfigHandler::class => [],
+			'page' => [
+				\Elgg\Likes\JsConfigHandler::class => [],
 			],
 		],
 		'permissions_check' => [
@@ -56,7 +58,7 @@ return [
 		],
 		'prepare' => [
 			'system:email' => [
-				Elgg\Likes\ThreadHeadersHandler::class => [],
+				\Elgg\Likes\ThreadHeadersHandler::class => [],
 			],
 		],
 		'register' => [
@@ -67,6 +69,15 @@ return [
 		'view_vars' => [
 			'page/components/list' => [
 				'Elgg\Likes\Preloader::preload' => [],
+			],
+		],
+	],
+	'notifications' => [
+		'annotation' => [
+			'likes' => [
+				'create' => [
+					\Elgg\Likes\Notifications\CreateLikesEventHandler::class => [],
+				],
 			],
 		],
 	],

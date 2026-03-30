@@ -2,6 +2,8 @@
 
 namespace Elgg\Integration;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+
 /**
  * Elgg Regression Tests -- GitHub Bugfixes
  * Any bugfixes from GitHub that require testing belong here.
@@ -74,15 +76,16 @@ class ElggCoreRegressionBugsTest extends \Elgg\IntegrationTestCase {
 	/**
 	 * @see https://github.com/elgg/elgg/issues/3210 - Don't remove -s in friendly titles
 	 * @see https://github.com/elgg/elgg/issues/2276 - improve char encoding
-	 *
-	 * @dataProvider friendlyTitleProvider
+	 * @see https://github.com/Elgg/Elgg/issues/13228 - length limit for multybyte characters
+	 * @see https://github.com/Elgg/Elgg/issues/14577 - improved multibyte cutoff place
 	 */
+	#[DataProvider('friendlyTitleProvider')]
 	public function testFriendlyTitle($input, $expected) {
 		$actual = elgg_get_friendly_title($input);
 		$this->assertEquals($expected, $actual);
 	}
 	
-	public function friendlyTitleProvider() {
+	public static function friendlyTitleProvider() {
 		$cases = [
 			// acid test
 			["B&N > Amazon, OK? <bold> 'hey!' $34", "bn-amazon-ok-bold-hey-34"],
@@ -97,6 +100,12 @@ class ElggCoreRegressionBugsTest extends \Elgg\IntegrationTestCase {
 			// accents removed, lower case, other multibyte chars are URL encoded
 			// Iñtërnâtiônàlizætiøn, AND 日本語
 			["I\xC3\xB1t\xC3\xABrn\xC3\xA2ti\xC3\xB4n\xC3\xA0liz\xC3\xA6ti\xC3\xB8n, AND \xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E", 'internationalizaetion-and-%E6%97%A5%E6%9C%AC%E8%AA%9E'],
+			
+			// multybyte length limit #13228
+			['দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষদ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষদ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষদ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষদ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষদ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষদ্ধক্তপ্লক্তক্ষ-দ্ধক্তপ্লক্তক্ষ-দ্ধ', '%E0%A6%A6%E0%A7%8D%E0%A6%A7%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%AA%E0%A7%8D%E0%A6%B2%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%95%E0%A7%8D%E0%A6%B7-%E0%A6%A6%E0%A7%8D%E0%A6%A7%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%AA%E0%A7%8D%E0%A6%B2%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%95%E0%A7%8D%E0%A6%B7%E0%A6%A6%E0%A7%8D%E0%A6%A7%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%AA%E0%A7%8D%E0%A6%B2%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%95%E0%A7%8D%E0%A6%B7-%E0%A6%A6%E0%A7%8D%E0%A6%A7%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%AA%E0%A7%8D%E0%A6%B2%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%95%E0%A7%8D%E0%A6%B7-%E0%A6%A6%E0%A7%8D%E0%A6%A7%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%AA%E0%A7%8D%E0%A6%B2%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%95%E0%A7%8D%E0%A6%B7-%E0%A6%A6%E0%A7%8D%E0%A6%A7%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%AA%E0%A7%8D%E0%A6%B2%E0%A6%95%E0%A7%8D%E0%A6%A4%E0%A6%95%E0%A7%8D%E0%A6%B7%E0%A6%A6%E0%A7%8D%E0%A6%A7%E0%A6%95%E0%A7%8D%E0%A6%A4'],
+			
+			// multibyte chars aren't cut off mid-character #14577
+			['Morihei Ueshiba O Sensei - Rare Aikido Demonstration (1957) 合気道植芝 盛平', 'morihei-ueshiba-o-sensei-rare-aikido-demonstration-1957-%E5%90%88%E6%B0%97%E9%81%93%E6%A4%8D%E8%8A%9D-%E7%9B%9B%E5%B9%B3'],
 		];
 		
 		if (\Elgg\Translit::hasNormalizerSupport()) {
@@ -109,14 +118,13 @@ class ElggCoreRegressionBugsTest extends \Elgg\IntegrationTestCase {
 	/**
 	 * Test #5369 -- elgg_parse_urls()
 	 * @see https://github.com/Elgg/Elgg/issues/5369
-	 *
-	 * @dataProvider parseUrlsProvider
 	 */
+	#[DataProvider('parseUrlsProvider')]
 	public function testParseUrls($input, $expected) {
 		$this->assertEquals($expected, elgg_parse_urls($input));
 	}
 	
-	public function parseUrlsProvider() {
+	public static function parseUrlsProvider() {
 		return [
 			['no.link.here', 'no.link.here'],
 			['simple link http://example.org test', 'simple link <a href="http://example.org" rel="nofollow">http://example.org</a> test'],
@@ -154,14 +162,13 @@ class ElggCoreRegressionBugsTest extends \Elgg\IntegrationTestCase {
 	/**
 	 * Test #10398 -- elgg_parse_emails()
 	 * @see https://github.com/Elgg/Elgg/pull/10398
-	 *
-	 * @dataProvider elggParseEmailsProvider
 	 */
+	#[DataProvider('elggParseEmailsProvider')]
 	public function testElggParseEmails($input, $expected) {
 		$this->assertEquals($expected, elgg_parse_emails($input));
 	}
 	
-	public function elggParseEmailsProvider() {
+	public static function elggParseEmailsProvider() {
 		return [
 			['no.email.here', 'no.email.here'],
 			['simple email mail@test.com test', 'simple email <a href="mailto:mail@test.com" rel="nofollow">mail@test.com</a> test'],
@@ -179,9 +186,8 @@ class ElggCoreRegressionBugsTest extends \Elgg\IntegrationTestCase {
 	 * Ensure additional select columns do not end up in entity attributes.
 	 *
 	 * @see https://github.com/Elgg/Elgg/issues/5538
-	 *
-	 * @dataProvider extraColumnsDontAppearInAttributesProvider
 	 */
+	#[DataProvider('extraColumnsDontAppearInAttributesProvider')]
 	public function testExtraColumnsDontAppearInAttributes($type) {
 		$seed_entity = false;
 		if ($type !== 'site') {
@@ -204,46 +210,13 @@ class ElggCoreRegressionBugsTest extends \Elgg\IntegrationTestCase {
 		$this->assertNull($entity->_nonexistent_test_column, "Additional select columns are leaking to attributes for '$type'");
 	}
 	
-	public function extraColumnsDontAppearInAttributesProvider() {
+	public static function extraColumnsDontAppearInAttributesProvider() {
 		return [
 			['site'],
 			['user'],
 			['group'],
 			['object'],
 		];
-	}
-
-	/**
-	 * Ensure that \ElggBatch doesn't go into infinite loop when disabling annotations recursively when show hidden is
-	 * enabled.
-	 *
-	 * @see https://github.com/Elgg/Elgg/issues/5952
-	 */
-	public function testDisablingAnnotationsInfiniteLoop() {
-		// let's have some entity
-		$group = $this->createGroup();
-
-		$total = 51;
-		// add some annotations
-		for ($cnt = 0; $cnt < $total; $cnt++) {
-			$group->annotate('test_annotation', 'value_' . $total);
-		}
-
-		// disable them
-		elgg_call(ELGG_SHOW_DISABLED_ENTITIES, function() use ($group, $total) {
-			elgg_disable_annotations([
-				'guid' => $group->guid,
-				'limit' => $total, //using strict limit to avoid real infinite loop and just see \ElggBatch limiting on it before finishing the work
-			]);
-		});
-		
-		// confirm all being disabled
-		$annotations = $group->getAnnotations([
-			'limit' => $total,
-		]);
-		foreach ($annotations as $annotation) {
-			$this->assertEquals('no', $annotation->enabled);
-		}
 	}
 
 	/**
@@ -313,8 +286,42 @@ class ElggCoreRegressionBugsTest extends \Elgg\IntegrationTestCase {
 			'owner_guid' => $user->guid,
 		]);
 
-		$stats = elgg_get_entity_statistics($user->guid);
+		$stats = elgg_get_entity_statistics([
+			'owner_guid' => $user->guid,
+		]);
 
 		$this->assertEquals(1, $stats['object'][$subtype]);
+	}
+	
+	/**
+	 * Test that entities can be found with both metadata and annotation limitations
+	 *
+	 * @see https://github.com/Elgg/Elgg/issues/14405
+	 */
+	function testGetEntitiesWithMetadataAndAnnotations() {
+		$entity = $this->createObject();
+		
+		// make sure likes is supported
+		elgg_entity_enable_capability($entity->type, $entity->subtype, 'likable');
+		$this->createLikes($entity, 5);
+		
+		$this->assertNotEmpty($entity->__faker); // metadata
+		$this->assertNotEmpty($entity->countAnnotations('likes')); // annotations
+		
+		$entities = elgg_get_entities([
+			'type' => $entity->type,
+			'subtype' => $entity->subtype,
+			'metadata_names' => '__faker',
+			'annotation_name_value_pairs' => [
+				[
+					'name' => 'likes',
+					'value' => 'likes',
+					'case_sensitive' => false,
+					'type' => ELGG_VALUE_STRING,
+				],
+			],
+		]);
+		
+		$this->assertNotEmpty($entities);
 	}
 }

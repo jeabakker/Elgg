@@ -5,15 +5,13 @@
  * Inspect global variables of Elgg
  */
 
-use Elgg\Exceptions\Http\EntityNotFoundException;
-
 $inspect_type = get_input('inspect_type');
 $method = 'get' . str_replace(' ', '', $inspect_type);
 $view_name = 'admin/develop_tools/inspect/' . strtolower(str_replace(' ', '', $inspect_type));
 $inspector = new \Elgg\Debug\Inspector();
 
 if (!elgg_view_exists($view_name) || !method_exists($inspector, $method)) {
-	throw new EntityNotFoundException();
+	throw new \Elgg\Exceptions\Http\PageNotFoundException();
 }
 
 switch ($inspect_type) {
@@ -22,7 +20,7 @@ switch ($inspect_type) {
 		$viewtype = get_input('type', 'default');
 
 		if (!in_array($viewtype, $viewtypes)) {
-			throw new EntityNotFoundException();
+			throw new \Elgg\Exceptions\Http\PageNotFoundException();
 		}
 
 		$data = $inspector->getViews($viewtype);

@@ -2,6 +2,8 @@
 
 namespace Elgg;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+
 class HandlerServiceUnitTest extends UnitTestCase {
 	
 	/**
@@ -39,7 +41,9 @@ class HandlerServiceUnitTest extends UnitTestCase {
 	}
 	
 	public function testCallUncallable() {
+		_elgg_services()->logger->disable();
 		$result = $this->service->call([$this, 'uncallable'], 'hook', ['unit', 'test']);
+		_elgg_services()->logger->enable();
 		
 		$this->validateCallResult($result, false, null, 'hook');
 	}
@@ -49,10 +53,8 @@ class HandlerServiceUnitTest extends UnitTestCase {
 		
 		$this->validateCallResult($result, true, 'event', \Elgg\Event::class);
 	}
-	
-	/**
-	 * @dataProvider callRequestProvider
-	 */
+
+	#[DataProvider('callRequestProvider')]
 	public function testCallRequest($object_type) {
 		$request = $this->prepareHttpRequest();
 		$result = $this->service->call([$this, 'callableRequest'], $object_type, [$request]);
@@ -60,7 +62,7 @@ class HandlerServiceUnitTest extends UnitTestCase {
 		$this->validateCallResult($result, true, 'request', \Elgg\Request::class);
 	}
 	
-	public function callRequestProvider() {
+	public static function callRequestProvider() {
 		return [
 			['middleware'],
 			['controller'],
@@ -84,19 +86,20 @@ class HandlerServiceUnitTest extends UnitTestCase {
 		$this->assertNull($this->service->resolveCallable([$this, 'uncallable']));
 	}
 	
-	/**
-	 * @dataProvider describeCallableProvider
-	 */
+	public function testDescribeInstancedCallable() {
+		$this->assertStringContainsString('(Elgg\HandlerServiceUnitTest)->callableEvent', $this->service->describeCallable([$this, 'callableEvent'], ''));
+	}
+
+	#[DataProvider('describeCallableProvider')]
 	public function testDescribeCallable($callable, $fileroot, $expected) {
 		$this->assertStringContainsString($expected, $this->service->describeCallable($callable, $fileroot));
 	}
 	
-	public function describeCallableProvider() {
+	public static function describeCallableProvider() {
 		return [
 			['some_function_name', '', 'some_function_name'],
-			[[$this, 'callableEvent'], '', '(Elgg\HandlerServiceUnitTest)->callableEvent'],
 			[[__CLASS__, 'callableEvent'], '', 'Elgg\HandlerServiceUnitTest::callableEvent'],
-			[function() {}, __DIR__, 'HandlerServiceUnitTest.php:99'], // this is very error prone. Please keep an eye on the line number
+			[function() {}, __DIR__, 'HandlerServiceUnitTest.php:' . __LINE__],
 			[new \Elgg\Helpers\EventsServiceTestInvokable(), __FILE__, '(Elgg\Helpers\EventsServiceTestInvokable)->__invoke()'],
 		];
 	}

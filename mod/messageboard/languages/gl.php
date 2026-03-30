@@ -6,13 +6,11 @@
  */
 
 return array(
-
+	
 	/**
 	 * Menu items and titles
 	 */
-
 	'messageboard:board' => "Taboleiro de mensaxes",
-	'messageboard:none' => "Aínda non hai nada no taboleiro.",
 	'messageboard:num_display' => "Número de mensaxes para mostrar",
 	'messageboard:owner' => 'Taboleiro de mensaxes de %s',
 	'messageboard:owner_history' => 'Mensaxes de %s no taboleiro de %s',

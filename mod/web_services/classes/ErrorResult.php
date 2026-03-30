@@ -1,9 +1,10 @@
 <?php
+
 /**
  * ErrorResult
  * The error result class.
  */
-class ErrorResult extends GenericResult {
+class ErrorResult extends \GenericResult {
 
 	public const RESULT_FAIL = -1;
 
@@ -17,35 +18,35 @@ class ErrorResult extends GenericResult {
 	/**
 	 * A new error result
 	 *
-	 * @param string    $message   Message
-	 * @param int       $code      Error Code
-	 * @param Throwable $exception Exception object
+	 * @param string          $message   Message
+	 * @param int|null        $code      Error Code
+	 * @param \Throwable|null $exception Exception object
 	 *
 	 * @return void
 	 */
-	public function __construct($message, $code = null, Throwable $exception = null) {
+	public function __construct(string $message, ?int $code = null, ?\Throwable $exception = null) {
 		if (!isset($code)) {
 			$code = self::RESULT_FAIL;
 		}
 
-		if ($exception instanceof Throwable) {
-			$this->setResult($exception->__toString());
+		if ($exception instanceof \Throwable && elgg_is_empty($message)) {
+			$message = $exception->getMessage();
 		}
 
 		$this->setStatusCode((int) $code, $message);
+		$this->setHttpStatus(ELGG_HTTP_INTERNAL_SERVER_ERROR);
 	}
 
 	/**
 	 * Get a new instance of the ErrorResult.
 	 *
-	 * @param string    $message   Message
-	 * @param int       $code      Code
-	 * @param Throwable $exception Optional exception for generating a stack trace.
+	 * @param string          $message   Message
+	 * @param int|null        $code      Code
+	 * @param \Throwable|null $exception Optional exception for generating a stack trace.
 	 *
-	 * @return ErrorResult
+	 * @return static
 	 */
-	public static function getInstance($message, $code = null, Throwable $exception = null) {
-		// Return a new error object.
-		return new ErrorResult($message, $code, $exception);
+	public static function getInstance(string $message, ?int $code = null, ?\Throwable $exception = null): static {
+		return new static($message, $code, $exception);
 	}
 }

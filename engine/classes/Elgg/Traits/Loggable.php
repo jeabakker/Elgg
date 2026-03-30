@@ -21,11 +21,11 @@ trait Loggable {
 	/**
 	 * Set (or remove) the logger
 	 *
-	 * @param LoggerInterface $logger Logger or null
+	 * @param null|LoggerInterface $logger Logger or null
 	 *
 	 * @return void
 	 */
-	public function setLogger(LoggerInterface $logger = null) {
+	public function setLogger(?LoggerInterface $logger = null) {
 		$this->logger = $logger;
 	}
 
@@ -57,10 +57,6 @@ trait Loggable {
 	 */
 	public function log($level, $message, array $context = []) {
 		if ($message instanceof \Throwable) {
-			if (!isset($message->timestamp)) {
-				$message->timestamp = time();
-			}
-
 			$context['exception'] = $message;
 		}
 

@@ -6,13 +6,12 @@
  */
 
 return array(
-
 	/**
 	 * Menu items and titles
 	 */
-
 	'item:object:page' => 'Σελίδες',
 	'collection:object:page' => 'Σελίδες',
+	
 	'collection:object:page:all' => "Όλες οι σελίδες",
 	'collection:object:page:owner' => "σελίδες του χρήστη %s",
 	'collection:object:page:friends' => "Σελίδες φίλων",
@@ -31,7 +30,6 @@ return array(
 	'pages:notify:subject' => "Νέα σελίδα: %s",
 
 	'pages:more' => 'Περισσότερες σελίδες',
-	'pages:none' => 'Δεν υπάρχουν ακόμα σελίδες',
 
 	/**
 	* River

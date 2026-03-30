@@ -4,6 +4,7 @@ namespace Elgg\Filesystem;
 
 use Elgg\Exceptions\InvalidArgumentException;
 use Elgg\UnitTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class MimeTypeServiceUnitTest extends UnitTestCase {
 
@@ -18,19 +19,17 @@ class MimeTypeServiceUnitTest extends UnitTestCase {
 	public function up() {
 		$this->service = _elgg_services()->mimetype;
 	}
-	
-	/**
-	 * @dataProvider validFilenameProvider
-	 */
+
+	#[DataProvider('validFilenameProvider')]
 	public function testGetMimeTypeFromValidFile($filename, $expected) {
 		$this->assertEquals($expected, $this->service->getMimeType($filename));
 	}
 	
-	public function validFilenameProvider() {
+	public static function validFilenameProvider() {
 		return [
-			[$this->normalizeTestFilePath('dataroot/1/1/300x300.jpg'), 'image/jpeg'],
-			[$this->normalizeTestFilePath('dataroot/1/1/400x300.gif'), 'image/gif'],
-			[$this->normalizeTestFilePath('dataroot/1/1/foobar.txt'), 'text/plain'],
+			[self::normalizeTestFilePath('dataroot/1/1/300x300.jpg'), 'image/jpeg'],
+			[self::normalizeTestFilePath('dataroot/1/1/400x300.gif'), 'image/gif'],
+			[self::normalizeTestFilePath('dataroot/1/1/foobar.txt'), 'text/plain'],
 		];
 	}
 	
@@ -64,15 +63,13 @@ class MimeTypeServiceUnitTest extends UnitTestCase {
 	public function testGetMimeTypeFromUnknownFileTypeWithCustomDefault() {
 		$this->markTestSkipped("Don't know how to generate a file which results in an unknow mimetype");
 	}
-	
-	/**
-	 * @dataProvider getSimpleTypeProvider
-	 */
+
+	#[DataProvider('getSimpleTypeProvider')]
 	public function testGetSimpleType($mimetype, $expected) {
 		$this->assertEquals($expected, $this->service->getSimpleType($mimetype));
 	}
 	
-	public function getSimpleTypeProvider() {
+	public static function getSimpleTypeProvider() {
 		return [
 			['text/html', 'document'],
 			['image/jpg', 'image'],
@@ -99,19 +96,17 @@ class MimeTypeServiceUnitTest extends UnitTestCase {
 		
 		elgg_unregister_event_handler('simple_type', 'file', $handler);
 	}
-	
-	/**
-	 * @dataProvider validSimpleTypeFilenameProvider
-	 */
+
+	#[DataProvider('validSimpleTypeFilenameProvider')]
 	public function testGetSimpleTypeFromFile($filename, $expected) {
 		$this->assertEquals($expected, $this->service->getSimpleTypeFromFile($filename));
 	}
 	
-	public function validSimpleTypeFilenameProvider() {
+	public static function validSimpleTypeFilenameProvider() {
 		return [
-			[$this->normalizeTestFilePath('dataroot/1/1/300x300.jpg'), 'image'],
-			[$this->normalizeTestFilePath('dataroot/1/1/400x300.gif'), 'image'],
-			[$this->normalizeTestFilePath('dataroot/1/1/foobar.txt'), 'document'],
+			[self::normalizeTestFilePath('dataroot/1/1/300x300.jpg'), 'image'],
+			[self::normalizeTestFilePath('dataroot/1/1/400x300.gif'), 'image'],
+			[self::normalizeTestFilePath('dataroot/1/1/foobar.txt'), 'document'],
 		];
 	}
 }

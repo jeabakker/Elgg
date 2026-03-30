@@ -6,12 +6,11 @@ use Elgg\IntegrationTestCase;
 use Hackzilla\PasswordGenerator\Generator\RequirementPasswordGenerator;
 use Elgg\Exceptions\Security\InvalidPasswordLengthException;
 use Elgg\Exceptions\Security\InvalidPasswordCharacterRequirementsException;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 
-	/**
-	 * @dataProvider invalidPasswordProvider
-	 */
+	#[DataProvider('invalidPasswordProvider')]
 	public function testInvalidPasswords($min_length, $lower, $upper, $number, $special, $password) {
 		$this->createApplication([
 			'isolate' => true,
@@ -31,10 +30,8 @@ class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 		$this->expectException(InvalidPasswordLengthException::class);
 		_elgg_services()->passwordGenerator->assertValidPassword('a1');
 	}
-	
-	/**
-	 * @dataProvider invalidPasswordProvider
-	 */
+
+	#[DataProvider('invalidPasswordProvider')]
 	public function testAssertInvalidPasswordRequirements($min_length, $lower, $upper, $number, $special, $password) {
 		
 		if (strlen($password) < $min_length) {
@@ -56,7 +53,7 @@ class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 		_elgg_services()->passwordGenerator->assertValidPassword($password);
 	}
 	
-	public function invalidPasswordProvider() {
+	public static function invalidPasswordProvider() {
 		return [
 			[6, null, null, null, null, '12345'],
 			[6, 1, null, null, null, '123456'],
@@ -69,10 +66,8 @@ class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 			[6, 1, null, null, 1, '123DEF'],
 		];
 	}
-	
-	/**
-	 * @dataProvider validPasswordProvider
-	 */
+
+	#[DataProvider('validPasswordProvider')]
 	public function testValidPasswords($min_length, $lower, $upper, $number, $special, $password) {
 		$this->createApplication([
 			'isolate' => true,
@@ -87,10 +82,8 @@ class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 		
 		$this->assertTrue(_elgg_services()->passwordGenerator->isValidPassword($password));
 	}
-	
-	/**
-	 * @dataProvider validPasswordProvider
-	 */
+
+	#[DataProvider('validPasswordProvider')]
 	public function testAssertValidPasswordRequirements($min_length, $lower, $upper, $number, $special, $password) {
 		$this->createApplication([
 			'isolate' => true,
@@ -106,7 +99,7 @@ class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 		$this->assertEmpty(_elgg_services()->passwordGenerator->assertValidPassword($password));
 	}
 	
-	public function validPasswordProvider() {
+	public static function validPasswordProvider() {
 		return [
 			[6, null, null, null, null, 'ac12CD#$'],
 			[6, 1, null, null, null, 'ac12CD#$'],
@@ -119,10 +112,8 @@ class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 			[6, 1, null, null, 1, 'ac12CD#$'],
 		];
 	}
-	
-	/**
-	 * @dataProvider getInputRegexProvider
-	 */
+
+	#[DataProvider('getInputRegexProvider')]
 	public function testGetInputRegex($lower, $upper, $number, $special) {
 		$this->createApplication([
 			'isolate' => true,
@@ -176,17 +167,14 @@ class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 			}
 		}
 		
-		$expected .= '.{6,}';
+		$expected .= '.{16,}';
 		
 		$regex = _elgg_services()->passwordGenerator->getInputRegEx();
 		
 		$this->assertEquals($expected, $regex);
 	}
-	
-	
-	/**
-	 * @dataProvider getInputRegexProvider
-	 */
+
+	#[DataProvider('getInputRegexProvider')]
 	public function testGetPasswordRequirementsDescription($lower, $upper, $number, $special) {
 		$this->createApplication([
 			'isolate' => true,
@@ -247,7 +235,7 @@ class PasswordGeneratorServiceIntegrationTest extends IntegrationTestCase {
 		$this->assertEquals(implode(' ', $result), _elgg_services()->passwordGenerator->getPasswordRequirementsDescription());
 	}
 	
-	public function getInputRegexProvider() {
+	public static function getInputRegexProvider() {
 		return [
 			[null, null, null, null],
 			[0, 0, 0, 0],

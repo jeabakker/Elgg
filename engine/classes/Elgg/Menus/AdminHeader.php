@@ -2,8 +2,10 @@
 
 namespace Elgg\Menus;
 
+use Elgg\Database\QueryBuilder;
 use Elgg\Menu\MenuItems;
 use Elgg\Menu\PreparedMenu;
+use Elgg\Values;
 
 /**
  * Register menu items for the admin_header menu
@@ -29,6 +31,27 @@ class AdminHeader {
 		$return = $event->getValue();
 		
 		$admin = elgg_get_logged_in_user_entity();
+		
+		$online_users_count = max(1, elgg_count_entities([
+			'type' => 'user',
+			'wheres' => [
+				function(QueryBuilder $qb, $main_alias) {
+					return $qb->compare("{$main_alias}.last_action", '>=', Values::normalizeTimestamp('-10 minutes'), ELGG_VALUE_TIMESTAMP);
+				}
+			],
+		]));
+		
+		$return[] = \ElggMenuItem::factory([
+			'name' => 'online_users_count',
+			'icon' => 'user',
+			'text' => false,
+			'title' => elgg_echo('admin:statistics:label:numonline'),
+			'badge' => elgg_format_element('span', ['title' => $online_users_count], Values::shortFormatOutput($online_users_count)),
+			'deps' => ['admin/users/online'],
+			'href' => 'admin/users/online',
+			'priority' => 10,
+			'section' => 'alt',
+		]);
 		
 		// link back to the site
 		$return[] = \ElggMenuItem::factory([
@@ -61,7 +84,7 @@ class AdminHeader {
 				'src' => $admin->getIconURL('small'),
 				'alt' => $admin->getDisplayName(),
 			]),
-			'link_class' => 'elgg-avatar-small',
+			'link_class' => ['elgg-avatar', 'elgg-avatar-small'],
 			'section' => 'alt',
 		]);
 		
@@ -107,7 +130,7 @@ class AdminHeader {
 	 * @return void|MenuItems
 	 */
 	public static function registerAdminAdminister(\Elgg\Event $event) {
-		if (!elgg_in_context('admin') || !elgg_is_admin_logged_in()) {
+		if (!elgg_is_admin_logged_in()) {
 			return;
 		}
 		
@@ -118,6 +141,7 @@ class AdminHeader {
 			'name' => 'administer',
 			'text' => elgg_echo('menu:page:header:administer'),
 			'href' => false,
+			'priority' => 10,
 		]);
 		
 		$return[] = \ElggMenuItem::factory([
@@ -151,16 +175,7 @@ class AdminHeader {
 			'priority' => 600,
 			'parent_name' => 'administer',
 		]);
-		
-		$return[] = \ElggMenuItem::factory([
-			'name' => 'administer_utilities',
-			'text' => elgg_echo('admin:administer_utilities'),
-			'href' => false,
-			'priority' => 50,
-			'parent_name' => 'administer',
-			'show_with_empty_children' => false,
-		]);
-		
+				
 		return $return;
 	}
 	
@@ -172,7 +187,7 @@ class AdminHeader {
 	 * @return PreparedMenu|null
 	 */
 	public static function prepareAdminAdministerUsersChildren(\Elgg\Event $event): ?PreparedMenu {
-		if (!elgg_in_context('admin') || !elgg_is_admin_logged_in()) {
+		if (!elgg_is_admin_logged_in()) {
 			return null;
 		}
 		
@@ -231,7 +246,7 @@ class AdminHeader {
 	 * @return void|MenuItems
 	 */
 	public static function registerAdminConfigure(\Elgg\Event $event) {
-		if (!elgg_in_context('admin') || !elgg_is_admin_logged_in()) {
+		if (!elgg_is_admin_logged_in()) {
 			return;
 		}
 		
@@ -242,6 +257,7 @@ class AdminHeader {
 			'name' => 'configure',
 			'text' => elgg_echo('menu:page:header:configure'),
 			'href' => false,
+			'priority' => 20,
 		]);
 		
 		$return[] = \ElggMenuItem::factory([
@@ -261,6 +277,14 @@ class AdminHeader {
 		]);
 		
 		$return[] = \ElggMenuItem::factory([
+			'name' => 'settings:theme',
+			'text' => elgg_echo('admin:theme'),
+			'href' => 'admin/theme',
+			'priority' => 25,
+			'parent_name' => 'configure',
+		]);
+		
+		$return[] = \ElggMenuItem::factory([
 			'name' => 'security',
 			'text' => elgg_echo('admin:security'),
 			'href' => 'admin/security',
@@ -268,31 +292,52 @@ class AdminHeader {
 			'parent_name' => 'configure',
 		]);
 		
-		// Utilities
-		$return[] = \ElggMenuItem::factory([
-			'name' => 'configure_utilities',
-			'text' => elgg_echo('admin:configure_utilities'),
-			'href' => false,
-			'priority' => 600,
-			'parent_name' => 'configure',
-		]);
 		$return[] = \ElggMenuItem::factory([
 			'name' => 'configure_utilities:maintenance',
 			'text' => elgg_echo('admin:configure_utilities:maintenance'),
 			'href' => 'admin/configure_utilities/maintenance',
-			'parent_name' => 'configure_utilities',
+			'priority' => 40,
+			'parent_name' => 'configure',
 		]);
-		$return[] = \ElggMenuItem::factory([
-			'name' => 'configure_utilities:menu_items',
-			'text' => elgg_echo('admin:configure_utilities:menu_items'),
-			'href' => 'admin/configure_utilities/menu_items',
-			'parent_name' => 'configure_utilities',
-		]);
+		
 		$return[] = \ElggMenuItem::factory([
 			'name' => 'configure_utilities:robots',
 			'text' => elgg_echo('admin:configure_utilities:robots'),
 			'href' => 'admin/configure_utilities/robots',
-			'parent_name' => 'configure_utilities',
+			'priority' => 50,
+			'parent_name' => 'configure',
+		]);
+						
+		return $return;
+	}
+	
+	/**
+	 * Add the utilities section to the admin page menu
+	 *
+	 * @param \Elgg\Event $event 'register', 'menu:admin_header'
+	 *
+	 * @return void|MenuItems
+	 */
+	public static function registerAdminUtilities(\Elgg\Event $event) {
+		if (!elgg_is_admin_logged_in()) {
+			return;
+		}
+		
+		/* @var $return MenuItems */
+		$return = $event->getValue();
+		
+		$return[] = \ElggMenuItem::factory([
+			'name' => 'utilities',
+			'text' => elgg_echo('menu:page:header:utilities'),
+			'href' => false,
+			'priority' => 30,
+		]);
+
+		$return[] = \ElggMenuItem::factory([
+			'name' => 'configure_utilities:menu_items',
+			'text' => elgg_echo('admin:configure_utilities:menu_items'),
+			'href' => 'admin/configure_utilities/menu_items',
+			'parent_name' => 'utilities',
 		]);
 		
 		return $return;
@@ -306,7 +351,7 @@ class AdminHeader {
 	 * @return void|MenuItems
 	 */
 	public static function registerAdminDefaultWidgets(\Elgg\Event $event) {
-		if (!elgg_in_context('admin') || !elgg_is_admin_logged_in()) {
+		if (!elgg_is_admin_logged_in()) {
 			return;
 		}
 		
@@ -321,7 +366,7 @@ class AdminHeader {
 			'name' => 'default_widgets',
 			'text' => elgg_echo('admin:configure_utilities:default_widgets'),
 			'href' => 'admin/configure_utilities/default_widgets',
-			'parent_name' => 'configure_utilities',
+			'parent_name' => 'utilities',
 		]);
 		
 		return $return;
@@ -335,7 +380,7 @@ class AdminHeader {
 	 * @return void|MenuItems
 	 */
 	public static function registerAdminInformation(\Elgg\Event $event) {
-		if (!elgg_in_context('admin') || !elgg_is_admin_logged_in()) {
+		if (!elgg_is_admin_logged_in()) {
 			return;
 		}
 		
@@ -346,6 +391,7 @@ class AdminHeader {
 			'name' => 'information',
 			'text' => elgg_echo('menu:page:header:information'),
 			'href' => false,
+			'priority' => 40,
 		]);
 		
 		$return[] = \ElggMenuItem::factory([

@@ -6,6 +6,7 @@ use Elgg\Database\Clauses\AnnotationWhereClause;
 use Elgg\Database\Clauses\AttributeWhereClause;
 use Elgg\Database\Clauses\EntityWhereClause;
 use Elgg\Database\Clauses\MetadataWhereClause;
+use Elgg\Database\EntityTable;
 use Elgg\Database\Select;
 use Elgg\Exceptions\DomainException;
 use Elgg\UnitTestCase;
@@ -14,14 +15,15 @@ class SearchServiceTest extends UnitTestCase {
 
 	public function up() {
 		_elgg_services()->events->backup();
+		_elgg_services()->logger->disable();
 	}
 
 	public function down() {
 		_elgg_services()->events->restore();
+		_elgg_services()->logger->enable();
 	}
 
 	public function testEmptyReturnWithMissingQueryParts() {
-
 		$options = [
 			'query' => '  ',
 		];
@@ -30,11 +32,7 @@ class SearchServiceTest extends UnitTestCase {
 
 		$this->assertFalse($result);
 	}
-
-	/**
-	 * @todo We need a data provider for XSS vectors => sanitized outputs,
-	 *       so we can use them across tests
-	 */
+	
 	public function testSanitizesSearchQueryAgainstXssAttack() {
 		$options = [
 			'query' => "'';!--\"<XSS>=&{()}",
@@ -43,8 +41,6 @@ class SearchServiceTest extends UnitTestCase {
 		$options = _elgg_services()->search->normalizeOptions($options);
 
 		$this->assertEquals("&#039;&#039;;!--&quot;=&amp;{()}", $options['query']);
-
-		$this->markTestIncomplete();
 	}
 
 	public function testStripsTagsFromQuery() {
@@ -71,7 +67,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testCanNormalizeSearchType() {
-
 		$options = [
 			'search_type' => '',
 		];
@@ -82,7 +77,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testThrowsOnInvalidEntityType() {
-
 		$handler = function (\Elgg\Event $event) {
 			return [
 				'metadata' => ['allowed1', 'allowed2'],
@@ -103,7 +97,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 	
 	public function testFalseInvalidEntityType() {
-
 		$handler = function (\Elgg\Event $event) {
 			return [
 				'metadata' => ['allowed1', 'allowed2'],
@@ -123,7 +116,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testCanFilterParamsWithEvent() {
-
 		$handler = function (\Elgg\Event $event) {
 			return [
 				'query' => 'altered query',
@@ -147,7 +139,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testCanRegisterAndNormalizeFields() {
-
 		$handler = function (\Elgg\Event $event) {
 			return [
 				'metadata' => ['allowed1', 'allowed2'],
@@ -223,7 +214,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testEndToEndSearchForAnnotationsWithExactMatchAndWithoutTokenization() {
-
 		elgg_register_event_handler('search:fields', 'object', function (\Elgg\Event $event) {
 			$value = $event->getValue();
 			$value['annotations'][] = 'foo1';
@@ -245,29 +235,34 @@ class SearchServiceTest extends UnitTestCase {
 			return $value;
 		});
 
-		$select = Select::fromTable('entities', 'e');
-		$select->select('DISTINCT e.*');
+		$select = Select::fromTable(EntityTable::TABLE_NAME, EntityTable::DEFAULT_JOIN_ALIAS);
+		$select->select("DISTINCT {$select->getTableAlias()}.*");
 
-		$alias = $select->joinAnnotationTable('e', 'guid', ['foo1', 'foo2', 'foo3'], 'left');
+		$alias = $select->joinAnnotationTable($select->getTableAlias(), 'guid', ['foo1', 'foo2', 'foo3'], 'left');
 
+		$wheres = [];
+		
 		$property = new AnnotationWhereClause();
 		$property->values = 'query1 query2 query3';
-		$property->comparison = "LIKE";
+		$property->comparison = 'LIKE';
 		$property->case_sensitive = false;
 
-		$select->andWhere($property->prepare($select, $alias));
+		$wheres[] = $property->prepare($select, $alias);
 
 		$where = new EntityWhereClause();
 		$where->type_subtype_pairs = [
 			'object' => ['blog'],
 		];
-		$select->addClause($where);
+		
+		$wheres[] = $where->prepare($select, EntityTable::DEFAULT_JOIN_ALIAS);
+		
+		$select->andWhere($select->merge($wheres));
 
 		$select->setMaxResults(10);
 		$select->setFirstResult(0);
 
-		$select->addOrderBy('e.time_created', 'desc');
-		$select->addOrderBy('e.guid', 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.time_created", 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.guid", 'desc');
 
 		$rows = $this->getRows(5);
 		$spec = _elgg_services()->db->addQuerySpec([
@@ -297,7 +292,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testEndToEndSearchForAnnotationsWithExactMatchAndTokenization() {
-
 		elgg_register_event_handler('search:fields', 'object', function (\Elgg\Event $event) {
 			$value = $event->getValue();
 			$value['annotations'][] = 'foo1';
@@ -319,36 +313,40 @@ class SearchServiceTest extends UnitTestCase {
 			return $value;
 		});
 
-		$select = Select::fromTable('entities', 'e');
-		$select->select('DISTINCT e.*');
+		$select = Select::fromTable(EntityTable::TABLE_NAME, EntityTable::DEFAULT_JOIN_ALIAS);
+		$select->select("DISTINCT {$select->getTableAlias()}.*");
 
-		$alias = $select->joinAnnotationTable('e', 'guid', ['foo1', 'foo2', 'foo3'], 'left');
+		$alias = $select->joinAnnotationTable($select->getTableAlias(), 'guid', ['foo1', 'foo2', 'foo3'], 'left');
 
 		$query_parts = ['query1', 'query2', 'query3'];
 
 		$wheres = [];
+		$q_wheres = [];
 
 		foreach ($query_parts as $part) {
 			$property = new AnnotationWhereClause();
 			$property->values = $part;
-			$property->comparison = "LIKE";
+			$property->comparison = 'LIKE';
 			$property->case_sensitive = false;
-			$wheres[] = $property->prepare($select, $alias);
+			$q_wheres[] = $property->prepare($select, $alias);
 		}
 
-		$select->andWhere($select->merge($wheres, 'AND'));
-
+		$wheres[] = $select->merge($q_wheres);
+		
 		$where = new EntityWhereClause();
 		$where->type_subtype_pairs = [
 			'object' => ['blog'],
 		];
-		$select->addClause($where);
-
+		
+		$wheres[] = $where->prepare($select, EntityTable::DEFAULT_JOIN_ALIAS);
+		
+		$select->andWhere($select->merge($wheres));
+		
 		$select->setMaxResults(10);
 		$select->setFirstResult(0);
 
-		$select->addOrderBy('e.time_created', 'desc');
-		$select->addOrderBy('e.guid', 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.time_created", 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.guid", 'desc');
 
 		$rows = $this->getRows(5);
 		$spec = _elgg_services()->db->addQuerySpec([
@@ -378,7 +376,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testEndToEndSearchForAnnotationsWithPartialMatchAndTokenization() {
-
 		elgg_register_event_handler('search:fields', 'object', function (\Elgg\Event $event) {
 			$value = $event->getValue();
 			$value['annotations'][] = 'foo1';
@@ -400,36 +397,39 @@ class SearchServiceTest extends UnitTestCase {
 			return $value;
 		});
 
-		$select = Select::fromTable('entities', 'e');
-		$select->select('DISTINCT e.*');
+		$select = Select::fromTable(EntityTable::TABLE_NAME, EntityTable::DEFAULT_JOIN_ALIAS);
+		$select->select("DISTINCT {$select->getTableAlias()}.*");
 
-		$alias = $select->joinAnnotationTable('e', 'guid', ['foo1', 'foo2', 'foo3'], 'left');
+		$alias = $select->joinAnnotationTable($select->getTableAlias(), 'guid', ['foo1', 'foo2', 'foo3'], 'left');
 
 		$query_parts = ['query1', 'query2', 'query3'];
 
 		$wheres = [];
+		$q_wheres = [];
 
 		foreach ($query_parts as $part) {
 			$property = new AnnotationWhereClause();
 			$property->values = "%{$part}%";
-			$property->comparison = "LIKE";
+			$property->comparison = 'LIKE';
 			$property->case_sensitive = false;
-			$wheres[] = $property->prepare($select, $alias);
+			$q_wheres[] = $property->prepare($select, $alias);
 		}
 
-		$select->andWhere($select->merge($wheres, 'AND'));
+		$wheres[] = $select->merge($q_wheres);
 
 		$where = new EntityWhereClause();
 		$where->type_subtype_pairs = [
 			'object' => ['blog'],
 		];
-		$select->addClause($where);
+		$wheres[] = $where->prepare($select, EntityTable::DEFAULT_JOIN_ALIAS);
+		
+		$select->andWhere($select->merge($wheres));
 
 		$select->setMaxResults(10);
 		$select->setFirstResult(0);
 
-		$select->addOrderBy('e.time_created', 'desc');
-		$select->addOrderBy('e.guid', 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.time_created", 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.guid", 'desc');
 
 		$rows = $this->getRows(5);
 		$spec = _elgg_services()->db->addQuerySpec([
@@ -459,7 +459,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testEndToEndSearchForMetadataWithExactMatchAndWithoutTokenization() {
-
 		elgg_register_event_handler('search:fields', 'object', function (\Elgg\Event $event) {
 			$value = $event->getValue();
 			$value['metadata'][] = 'foo1';
@@ -481,15 +480,16 @@ class SearchServiceTest extends UnitTestCase {
 			return $value;
 		});
 
-		$select = Select::fromTable('entities', 'e');
-		$select->select('DISTINCT e.*');
+		$select = Select::fromTable(EntityTable::TABLE_NAME, EntityTable::DEFAULT_JOIN_ALIAS);
+		$select->select("DISTINCT {$select->getTableAlias()}.*");
 
-		$alias = $select->joinMetadataTable('e', 'guid', ['foo1', 'foo2', 'foo3'], 'left');
+		$alias = $select->joinMetadataTable($select->getTableAlias(), 'guid', ['foo1', 'foo2', 'foo3'], 'left');
 
-		$property = new MetadataWhereClause();
-		$property->values = 'query1 query2 query3';
-		$property->comparison = "LIKE";
-		$property->case_sensitive = false;
+		$property = MetadataWhereClause::factory([
+			'values' => 'query1 query2 query3',
+			'comparison' => 'LIKE',
+			'case_sensitive' => false,
+		]);
 
 		$select->andWhere($property->prepare($select, $alias));
 
@@ -502,8 +502,8 @@ class SearchServiceTest extends UnitTestCase {
 		$select->setMaxResults(10);
 		$select->setFirstResult(0);
 
-		$select->addOrderBy('e.time_created', 'desc');
-		$select->addOrderBy('e.guid', 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.time_created", 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.guid", 'desc');
 
 		$rows = $this->getRows(5);
 		$spec = _elgg_services()->db->addQuerySpec([
@@ -533,7 +533,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testEndToEndSearchForMetadataWithExactMatchAndTokenization() {
-
 		elgg_register_event_handler('search:fields', 'object', function (\Elgg\Event $event) {
 			$value = $event->getValue();
 			$value['metadata'][] = 'foo1';
@@ -555,36 +554,41 @@ class SearchServiceTest extends UnitTestCase {
 			return $value;
 		});
 
-		$select = Select::fromTable('entities', 'e');
-		$select->select('DISTINCT e.*');
+		$select = Select::fromTable(EntityTable::TABLE_NAME, EntityTable::DEFAULT_JOIN_ALIAS);
+		$select->select("DISTINCT {$select->getTableAlias()}.*");
 
-		$alias = $select->joinMetadataTable('e', 'guid', ['foo1', 'foo2', 'foo3'], 'left');
+		$alias = $select->joinMetadataTable($select->getTableAlias(), 'guid', ['foo1', 'foo2', 'foo3'], 'left');
 
 		$query_parts = ['query1', 'query2', 'query3'];
 
 		$wheres = [];
+		$q_wheres = [];
 
 		foreach ($query_parts as $part) {
-			$property = new MetadataWhereClause();
-			$property->values = $part;
-			$property->comparison = "LIKE";
-			$property->case_sensitive = false;
-			$wheres[] = $property->prepare($select, $alias);
+			$property = MetadataWhereClause::factory([
+				'values' => $part,
+				'comparison' => 'LIKE',
+				'case_sensitive' => false,
+			]);
+			$q_wheres[] = $property->prepare($select, $alias);
 		}
 
-		$select->andWhere($select->merge($wheres, 'AND'));
+		$wheres[] = $select->merge($q_wheres);
 
 		$where = new EntityWhereClause();
 		$where->type_subtype_pairs = [
 			'object' => ['blog'],
 		];
-		$select->addClause($where);
+		
+		$wheres[] = $where->prepare($select, EntityTable::DEFAULT_JOIN_ALIAS);
+		
+		$select->andWhere($select->merge($wheres));
 
 		$select->setMaxResults(10);
 		$select->setFirstResult(0);
 
-		$select->addOrderBy('e.time_created', 'desc');
-		$select->addOrderBy('e.guid', 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.time_created", 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.guid", 'desc');
 
 		$rows = $this->getRows(5);
 		$spec = _elgg_services()->db->addQuerySpec([
@@ -614,7 +618,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testEndToEndSearchForMetadataWithPartialMatchAndTokenization() {
-
 		elgg_register_event_handler('search:fields', 'object', function (\Elgg\Event $event) {
 			$value = $event->getValue();
 			$value['metadata'][] = 'foo1';
@@ -636,36 +639,41 @@ class SearchServiceTest extends UnitTestCase {
 			return $value;
 		});
 
-		$select = Select::fromTable('entities', 'e');
-		$select->select('DISTINCT e.*');
+		$select = Select::fromTable(EntityTable::TABLE_NAME, EntityTable::DEFAULT_JOIN_ALIAS);
+		$select->select("DISTINCT {$select->getTableAlias()}.*");
 
-		$alias = $select->joinMetadataTable('e', 'guid', ['foo1', 'foo2', 'foo3'], 'left');
+		$alias = $select->joinMetadataTable($select->getTableAlias(), 'guid', ['foo1', 'foo2', 'foo3'], 'left');
 
 		$query_parts = ['query1', 'query2', 'query3'];
 
 		$wheres = [];
+		$q_wheres = [];
 
 		foreach ($query_parts as $part) {
-			$property = new MetadataWhereClause();
-			$property->values = "%{$part}%";
-			$property->comparison = "LIKE";
-			$property->case_sensitive = false;
-			$wheres[] = $property->prepare($select, $alias);
+			$property = MetadataWhereClause::factory([
+				'values' => "%{$part}%",
+				'comparison' => 'LIKE',
+				'case_sensitive' => false,
+			]);
+			$q_wheres[] = $property->prepare($select, $alias);
 		}
 
-		$select->andWhere($select->merge($wheres, 'AND'));
+		$wheres[] = $select->merge($q_wheres);
 
 		$where = new EntityWhereClause();
 		$where->type_subtype_pairs = [
 			'object' => ['blog'],
 		];
-		$select->addClause($where);
+		
+		$wheres[] = $where->prepare($select, EntityTable::DEFAULT_JOIN_ALIAS);
+		
+		$select->andWhere($select->merge($wheres));
 
 		$select->setMaxResults(10);
 		$select->setFirstResult(0);
 
-		$select->addOrderBy('e.time_created', 'desc');
-		$select->addOrderBy('e.guid', 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.time_created", 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.guid", 'desc');
 
 		$rows = $this->getRows(5);
 		$spec = _elgg_services()->db->addQuerySpec([
@@ -695,7 +703,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testEndToEndSearchWithMultipleProperties() {
-
 		elgg_register_event_handler('search:fields', 'custom', function (\Elgg\Event $event) {
 			return [
 				'attributes' => ['type', 'subtype'],
@@ -704,8 +711,8 @@ class SearchServiceTest extends UnitTestCase {
 			];
 		});
 
-		$select = Select::fromTable('entities', 'e');
-		$select->select('DISTINCT e.*');
+		$select = Select::fromTable(EntityTable::TABLE_NAME, EntityTable::DEFAULT_JOIN_ALIAS);
+		$select->select("DISTINCT {$select->getTableAlias()}.*");
 
 		$query_parts = ['query1', 'query2', 'query3'];
 
@@ -717,30 +724,30 @@ class SearchServiceTest extends UnitTestCase {
 				$attribute = new AttributeWhereClause();
 				$attribute->names = $attr;
 				$attribute->values = "%{$part}%";
-				$attribute->comparison = "LIKE";
-				$attribute->case_sensitive = false;
-				$wheres[] = $attribute->prepare($select, 'e');
+				$attribute->comparison = 'LIKE';
+				$wheres[] = $attribute->prepare($select, $select->getTableAlias());
 			}
 			$ors[] = $select->merge($wheres, 'AND');
 		}
 
-		$md_alias = $select->joinMetadataTable('e', 'guid', ['foo1'], 'left');
+		$md_alias = $select->joinMetadataTable($select->getTableAlias(), 'guid', ['foo1'], 'left');
 		$wheres = [];
 		foreach ($query_parts as $part) {
-			$metadata = new MetadataWhereClause();
-			$metadata->values = "%{$part}%";
-			$metadata->comparison = "LIKE";
-			$metadata->case_sensitive = false;
+			$metadata = MetadataWhereClause::factory([
+				'values' => "%{$part}%",
+				'comparison' => 'LIKE',
+				'case_sensitive' => false,
+			]);
 			$wheres[] = $metadata->prepare($select, $md_alias);
 		}
 		$ors[] = $select->merge($wheres, 'AND');
 
-		$an_alias = $select->joinAnnotationTable('e', 'guid', ['foo2'], 'left');
+		$an_alias = $select->joinAnnotationTable($select->getTableAlias(), 'guid', ['foo2'], 'left');
 		$wheres = [];
 		foreach ($query_parts as $part) {
 			$annotation = new AnnotationWhereClause();
 			$annotation->values = "%{$part}%";
-			$annotation->comparison = "LIKE";
+			$annotation->comparison = 'LIKE';
 			$annotation->case_sensitive = false;
 			$wheres[] = $annotation->prepare($select, $an_alias);
 		}
@@ -757,8 +764,8 @@ class SearchServiceTest extends UnitTestCase {
 		$select->setMaxResults(10);
 		$select->setFirstResult(0);
 
-		$select->addOrderBy('e.time_created', 'desc');
-		$select->addOrderBy('e.guid', 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.time_created", 'desc');
+		$select->addOrderBy("{$select->getTableAlias()}.guid", 'desc');
 
 		$rows = $this->getRows(5);
 		$spec = _elgg_services()->db->addQuerySpec([
@@ -791,7 +798,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testCanAlterOptions() {
-
 		elgg_register_event_handler('search:fields', 'custom', function (\Elgg\Event $event) {
 			return [
 				'attributes' => ['type', 'subtype'],
@@ -823,7 +829,6 @@ class SearchServiceTest extends UnitTestCase {
 	}
 
 	public function testCanUseCustomResultsProvider() {
-
 		elgg_register_event_handler('search:fields', 'custom', function (\Elgg\Event $event) {
 			return [
 				'attributes' => ['type', 'subtype'],
@@ -911,5 +916,4 @@ class SearchServiceTest extends UnitTestCase {
 
 		return $rows;
 	}
-
 }

@@ -2,11 +2,10 @@
 
 namespace Elgg\Users;
 
-use Elgg\Email;
-use Elgg\Email\Address;
 use Elgg\Exceptions\Configuration\RegistrationException;
 use Elgg\Http\ResponseBuilder;
 use Elgg\Request;
+use Symfony\Component\Mime\Address;
 
 /**
  * Controller to handle confirmation of a user e-mail address change
@@ -16,7 +15,7 @@ use Elgg\Request;
 class EmailChangeController {
 	
 	/**
-	 * Execute a email change
+	 * Execute an email change
 	 *
 	 * @param Request $request the HTTP request
 	 *
@@ -49,13 +48,8 @@ class EmailChangeController {
 		
 		// notify old and new email of the change
 		$site = elgg_get_site_entity();
-		$notification_params = [
-			'object' => $user,
-			'action' => 'email_change',
-			'apply_muting' => false,
-		];
 		
-		$notification = Email::factory([
+		elgg_send_email([
 			'from' => $site,
 			'to' => new Address($old_email, $user->getDisplayName()),
 			'subject' => $translator->translate('email:confirm:email:old:subject', [], $user->getLanguage()),
@@ -64,17 +58,13 @@ class EmailChangeController {
 				$new_email,
 				$site->getURL(),
 			], $user->getLanguage()),
-			'params' => $notification_params,
+			'params' => [
+				'object' => $user,
+				'action' => 'email_change',
+			],
 		]);
-		elgg_send_email($notification);
 		
-		$subject = $translator->translate('email:confirm:email:new:subject', [], $user->getLanguage());
-		$body = $translator->translate('email:confirm:email:new:body', [
-			$site->getDisplayName(),
-			$site->getURL(),
-		], $user->getLanguage());
-		
-		notify_user($user->guid, $site->guid, $subject, $body, $notification_params, ['email']);
+		$user->notify('email_change', $user);
 		
 		return elgg_ok_response('', $translator->translate('email:save:success'), '');
 	}

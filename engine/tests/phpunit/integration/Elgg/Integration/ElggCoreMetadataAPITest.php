@@ -2,16 +2,17 @@
 
 namespace Elgg\Integration;
 
+use Elgg\Database\MetadataTable;
+use Elgg\Database\QueryBuilder;
 use Elgg\Database\Select;
 use Elgg\Database\Update;
 use Elgg\IntegrationTestCase;
-use ElggMetadata;
-use ElggObject;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ElggCoreMetadataAPITest extends IntegrationTestCase {
 
 	/**
-	 * @var ElggObject
+	 * @var \ElggObject
 	 */
 	protected $object;
 
@@ -19,7 +20,7 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 		_elgg_services()->session_manager->setLoggedInUser($this->getAdmin());
 		
 		// can not use createObject(). The tests rely on an unsaved entity
-		$this->object = new \ElggObject();
+		$this->object = new \Elgg\Helpers\ElggTestObject();
 		$this->object->setSubtype($this->getRandomSubtype());
 	}
 
@@ -30,7 +31,6 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 	}
 
 	public function testElggGetEntitiesFromMetadata() {
-
 		$this->object->title = 'Meta Unit Test';
 		$this->object->save();
 
@@ -71,11 +71,8 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 		$this->object->delete();
 	}
 
-	/**
-	 * @dataProvider caseSensitivePairsProvider
-	 */
+	#[DataProvider('caseSensitivePairsProvider')]
 	public function testElggGetEntitiesFromMetadataCaseSensitive($comparison, $value, $case_sensitive, $count) {
-
 		$this->object->setSubtype($this->getRandomSubtype());
 		$this->object->metadata = 'CaseSensitive';
 		$this->object->save();
@@ -101,7 +98,7 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 		$this->object->delete();
 	}
 
-	public function caseSensitivePairsProvider() {
+	public static function caseSensitivePairsProvider() {
 		return [
 			['=', 'CaseSensitive', true, 1],
 			['=', 'CaseSensitive', false, 1],
@@ -153,11 +150,8 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 		];
 	}
 
-	/**
-	 * @dataProvider booleanPairsProvider
-	 */
+	#[DataProvider('booleanPairsProvider')]
 	public function testElggGetEntitiesFromBooleanMetadata($value, $query, $type) {
-
 		$this->object->setSubtype($this->getRandomSubtype());
 		$this->object->metadata = $value;
 		$this->object->save();
@@ -183,7 +177,7 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 		$this->object->delete();
 	}
 
-	public function booleanPairsProvider() {
+	public static function booleanPairsProvider() {
 		return [
 			[true, true, null],
 			[true, 1, null],
@@ -215,12 +209,12 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 	}
 
 	public function testElggDeleteMetadata() {
-		$e = new ElggObject();
+		$e = new \Elgg\Helpers\ElggTestObject();
 		$e->setSubtype($this->getRandomSubtype());
 		$e->save();
 
 		for ($i = 0; $i < 30; $i++) {
-			$name = "test_metadata$i";
+			$name = "test_metadata{$i}";
 			$e->$name = rand(0, 10000);
 		}
 
@@ -228,7 +222,9 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 			'guid' => $e->getGUID(),
 			'limit' => false,
 			'wheres' => [
-				"n_table.name LIKE 'test_metadata%'",
+				function (QueryBuilder $qb, $main_alias) {
+					return $qb->compare("{$main_alias}.name", 'like', 'test_metadata%', ELGG_VALUE_STRING);
+				},
 			],
 		];
 
@@ -271,7 +267,7 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 			$entity->test = $md_values;
 	
 			// check only these md exists
-			$qb = Select::fromTable('metadata');
+			$qb = Select::fromTable(MetadataTable::TABLE_NAME);
 			$qb->select('*');
 			$qb->where($qb->compare('entity_guid', '=', $entity->guid, ELGG_VALUE_INTEGER))
 				->andWhere($qb->compare('name', '=', 'test', ELGG_VALUE_STRING));
@@ -314,7 +310,7 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 		$md_values = null;
 		
 		elgg_call(ELGG_IGNORE_ACCESS, function() use (&$obj, &$md_values) {
-			$obj = new ElggObject();
+			$obj = new \Elgg\Helpers\ElggTestObject();
 			$obj->setSubtype($this->getRandomSubtype());
 			$obj->owner_guid = elgg_get_site_entity()->guid;
 			$obj->container_guid = elgg_get_site_entity()->guid;
@@ -333,7 +329,7 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 			]);
 	
 			foreach ($mds as $md) {
-				$update_metadata = Update::table('metadata');
+				$update_metadata = Update::table(MetadataTable::TABLE_NAME);
 				$update_metadata->set('time_created', $update_metadata->param($time, ELGG_VALUE_TIMESTAMP));
 				$update_metadata->where($update_metadata->compare('id', '=', $md->id, ELGG_VALUE_ID));
 				
@@ -346,7 +342,7 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 				'metadata_names' => 'test_md',
 			]);
 	
-			$md_values = array_map(function (ElggMetadata $md) {
+			$md_values = array_map(function (\ElggMetadata $md) {
 				return (int) $md->value;
 			}, $mds);
 			$this->assertEquals([1, 2, 3], $md_values);
@@ -354,13 +350,13 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 		
 		// ignore access bypasses the MD cache, so we try it both ways
 		elgg_call(ELGG_ENFORCE_ACCESS, function() use (&$obj, &$md_values) {
-			_elgg_services()->metadataCache->clear($obj->guid);
+			_elgg_services()->metadataCache->delete($obj->guid);
 			$md_values = $obj->test_md;
 			$this->assertEquals([1, 2, 3], $md_values);
 		});
 		
 		elgg_call(ELGG_IGNORE_ACCESS, function() use (&$obj, &$md_values) {
-			_elgg_services()->metadataCache->clear($obj->guid);
+			_elgg_services()->metadataCache->delete($obj->guid);
 			$md_values = $obj->test_md;
 			$this->assertEquals([1, 2, 3], $md_values);
 	
@@ -369,7 +365,6 @@ class ElggCoreMetadataAPITest extends IntegrationTestCase {
 	}
 
 	public function testCanDeleteMetadataByObject() {
-
 		$entity = $this->createObject([
 			'foo' => 'bar',
 			'bar' => 'baz',

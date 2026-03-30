@@ -3,7 +3,6 @@
 namespace Elgg;
 
 use Elgg\Exceptions\InvalidArgumentException;
-use Elgg\Exceptions\LogicException;
 use Elgg\Exceptions\RangeException;
 use Elgg\Filesystem\MimeTypeService;
 use Elgg\Traits\Loggable;
@@ -31,22 +30,12 @@ class ImageService {
 	protected $imagine;
 
 	/**
-	 * @var Config
-	 */
-	protected $config;
-	
-	/**
-	 * @var MimeTypeService
-	 */
-	protected $mimetype;
-
-	/**
 	 * Constructor
 	 *
 	 * @param Config          $config   Elgg config
 	 * @param MimeTypeService $mimetype MimeType service
 	 */
-	public function __construct(Config $config, MimeTypeService $mimetype) {
+	public function __construct(protected Config $config, protected MimeTypeService $mimetype) {
 		
 		switch ($config->image_processor) {
 			case 'imagick':
@@ -61,40 +50,37 @@ class ImageService {
 				$this->imagine = new \Imagine\Gd\Imagine();
 				break;
 		}
-
-		$this->config = $config;
-		$this->mimetype = $mimetype;
 	}
 
 	/**
 	 * Crop and resize an image
 	 *
-	 * @param string $source      Path to source image
-	 * @param string $destination Path to destination
-	 *                            If not set, will modify the source image
-	 * @param array  $params      An array of cropping/resizing parameters
-	 *                            - INT 'w' represents the width of the new image
-	 *                            With upscaling disabled, this is the maximum width
-	 *                            of the new image (in case the source image is
-	 *                            smaller than the expected width)
+	 * @param string      $source      Path to source image
+	 * @param null|string $destination Path to destination
+	 *                                 If not set, will modify the source image
+	 * @param array       $params      An array of cropping/resizing parameters
+	 *                                 - INT 'w' represents the width of the new image
+	 *                                 With upscaling disabled, this is the maximum width
+	 *                                 of the new image (in case the source image is
+	 *                                 smaller than the expected width)
 	 *
-	 *                            - INT 'h' represents the height of the new image
-	 *                            With upscaling disabled, this is the maximum height
+	 *                                 - INT 'h' represents the height of the new image
+	 *                                 With upscaling disabled, this is the maximum height
 	 *
-	 *                            - INT 'x1', 'y1', 'x2', 'y2' represent optional cropping
-	 *                            coordinates. The source image will first be cropped
-	 *                            to these coordinates, and then resized to match
-	 *                            width/height parameters
+	 *                                 - INT 'x1', 'y1', 'x2', 'y2' represent optional cropping
+	 *                                 coordinates. The source image will first be cropped
+	 *                                 to these coordinates, and then resized to match
+	 *                                 width/height parameters
 	 *
-	 *                            - BOOL 'square' - square images will fill the
-	 *                            bounding box (width x height). In Imagine's terms,
-	 *                            this equates to OUTBOUND mode
+	 *                                 - BOOL 'square' - square images will fill the
+	 *                                 bounding box (width x height). In Imagine's terms,
+	 *                                 this equates to OUTBOUND mode
 	 *
-	 *                            - BOOL 'upscale' - if enabled, smaller images
-	 *                            will be upscaled to fit the bounding box.
+	 *                                 - BOOL 'upscale' - if enabled, smaller images
+	 *                                 will be upscaled to fit the bounding box.
 	 * @return bool
 	 */
-	public function resize(string $source, string $destination = null, array $params = []): bool {
+	public function resize(string $source, ?string $destination = null, array $params = []): bool {
 
 		$destination = $destination ?? $source;
 
@@ -118,7 +104,12 @@ class ImageService {
 			}
 
 			$target_size = new Box($max_width, $max_height);
-			$thumbnail = $image->resize($target_size);
+			$image->resize($target_size);
+			
+			// create new canvas with a background (default: white)
+			$background_color = elgg_extract('background_color', $params, 'ffffff');
+			$thumbnail = $this->imagine->create($image->getSize(), $image->palette()->color($background_color));
+			$thumbnail->paste($image, new Point(0, 0));
 
 			if (pathinfo($destination, PATHINFO_EXTENSION) === 'webp') {
 				$options = [
@@ -231,7 +222,7 @@ class ImageService {
 			$max_width = min($max_width, $max_height);
 			$max_height = $max_width;
 			
-			// find largest square that fits within the selected region
+			// find the largest square that fits within the selected region
 			$crop_width = min($crop_width, $crop_height);
 			$crop_height = $crop_width;
 			

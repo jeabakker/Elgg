@@ -7,7 +7,6 @@ use Elgg\Database\Clauses\OrderByClause;
 use Elgg\Database\QueryBuilder;
 use Elgg\Database\Seeds\Providers\LocalImage;
 use Elgg\Exceptions\Configuration\RegistrationException;
-use Elgg\Exceptions\Exception;
 use Elgg\Exceptions\Seeding\MaxAttemptsException;
 use Elgg\Groups\Tool;
 use Elgg\Traits\Seeding\GroupHelpers;
@@ -87,9 +86,9 @@ trait Seeding {
 	/**
 	 * Returns random unique subtype
 	 *
-	 * @return bool|string
+	 * @return string
 	 */
-	public function getRandomSubtype(): bool|string {
+	public function getRandomSubtype(): string {
 		return substr(sha1(microtime() . rand()), 0, 25);
 	}
 
@@ -100,7 +99,6 @@ trait Seeding {
 	 * @param array $options    Seeding options
 	 *
 	 * @return \ElggUser
-	 * @throws Exception
 	 * @throws MaxAttemptsException
 	 */
 	public function createUser(array $properties = [], array $options = []): \ElggUser {
@@ -381,6 +379,12 @@ trait Seeding {
 	 * @throws MaxAttemptsException
 	 */
 	public function createObject(array $properties = [], array $options = []): \ElggObject {
+		$default_properties = [
+			'title' => true,
+			'description' => true,
+			'tags' => true,
+		];
+		$properties = array_merge($default_properties, $properties);
 
 		$create = function () use ($properties, $options) {
 			$properties['__faker'] = true;
@@ -389,20 +393,26 @@ trait Seeding {
 				$properties['time_created'] = $this->getRandomCreationTimestamp();
 			}
 
-			if (empty($properties['title'])) {
+			if ($properties['title'] === true) {
 				$properties['title'] = $this->faker()->sentence();
+			} elseif ($properties['title'] === false) {
+				unset($properties['title']);
 			}
 
-			if (empty($properties['description'])) {
+			if ($properties['description'] === true) {
 				$properties['description'] = $this->faker()->text($this->faker()->numberBetween(500, 1000));
+			} elseif ($properties['description'] === false) {
+				unset($properties['description']);
 			}
 
 			if (empty($properties['subtype'])) {
 				$properties['subtype'] = $this->getRandomSubtype();
 			}
 
-			if (empty($properties['tags'])) {
+			if ($properties['tags'] === true) {
 				$properties['tags'] = $this->faker()->words(10);
+			} elseif ($properties['tags'] === false) {
+				unset($properties['tags']);
 			}
 
 			if (!isset($properties['owner_guid'])) {
@@ -435,12 +445,12 @@ trait Seeding {
 			}
 
 			$class = elgg_get_entity_class('object', $properties['subtype']);
-			if ($class && class_exists($class)) {
-				$object = new $class();
-			} else {
-				$object = new \ElggObject();
+			if (!class_exists($class)) {
+				return false;
 			}
-
+			
+			$object = new $class();
+			
 			foreach ($properties as $name => $value) {
 				switch ($name) {
 					case 'type':
@@ -598,13 +608,13 @@ trait Seeding {
 	/**
 	 * Get random access id
 	 *
-	 * @param \ElggUser   $user      User
-	 * @param \ElggEntity $container Container
+	 * @param null|\ElggUser   $user      User
+	 * @param null|\ElggEntity $container Container
 	 *
 	 * @return int
 	 */
-	public function getRandomAccessId(\ElggUser $user = null, \ElggEntity $container = null) {
-		$access_array = elgg_get_write_access_array($user->guid, false, [
+	public function getRandomAccessId(?\ElggUser $user = null, ?\ElggEntity $container = null) {
+		$access_array = elgg_get_write_access_array($user?->guid, false, [
 			'container_guid' => $container?->guid,
 		]);
 
@@ -823,6 +833,7 @@ trait Seeding {
 				$comment->container_guid = $entity->guid;
 				$comment->description = $this->faker()->paragraph;
 				$comment->time_created = $this->getRandomCreationTimestamp();
+				$comment->access_id = $entity->access_id;
 	
 				$tries++;
 				if ($comment->save()) {
@@ -858,7 +869,7 @@ trait Seeding {
 			}
 	
 			while ($success < $limit) {
-				if ($entity->annotate('likes', true, $entity->access_id, $this->getRandomUser()->guid)) {
+				if ($entity->annotate('likes', 'likes', ACCESS_PUBLIC, $this->getRandomUser()->guid)) {
 					$success++;
 				}
 			}
@@ -872,7 +883,6 @@ trait Seeding {
 	 *
 	 * @param string $msg   Message to log
 	 * @param string $level Message level
-	 *                      Note that 'ERROR' will terminate further code execution
 	 *
 	 * @return void
 	 */

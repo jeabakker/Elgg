@@ -132,55 +132,6 @@ $CONFIG->dbencoding = 'utf8mb4';
 //$CONFIG->db['read'][1]['dbport'] = "";
 
 /**
- * Memcache setup (optional)
- * This is where you may optionally set up memcache.
- *
- * Requirements:
- * 	1) One or more memcache servers (http://www.danga.com/memcached/)
- *  2) PHP memcache wrapper (http://php.net/manual/en/memcache.setup.php)
- *
- * You can set a namespace prefix if you run multiple Elgg instances
- * on the same Memcache server.
- *
- * Note: Multiple server support is only available on server 1.2.1
- * or higher with PECL library > 2.0.0
- */
-//$CONFIG->memcache = true;
-//
-//$CONFIG->memcache_servers = array (
-//	array(
-// 		'host' => 'server1',
-//		'port' => 11211,
-// 	),
-//	array(
-// 		'host' => 'server2',
-//		'port' => 11211,
-// 	),
-//);
-
-// namespace prefix (can only be used with memcached)
-// $CONFIG->memcache_namespace_prefix = '';
-
-/**
- * Redis setup (optional)
- * This is where you may optionally set up Redis.
- */
-//$CONFIG->redis = true;
-//
-//$CONFIG->redis_options = array (
-//	'database' => '', // The "database" option lets developers specific which specific database to use.
-//	'password' => '', // The "password" option is used for clusters which required authentication.
-//);
-//
-// Only one server can be configured
-//$CONFIG->redis_servers = array (
-//	array(
-//		'host' => 'server1',
-//		'port' => 6379,
-//	),
-//);
-
-/**
  * Better caching performance
  *
  * Configuring simplecache in the settings.php file improves caching performance.
@@ -261,6 +212,8 @@ $CONFIG->dbencoding = 'utf8mb4';
  *
  * To use, uncomment the appropriate sections below and update for your site.
  *
+ * @see https://www.php.net/manual/en/function.session-get-cookie-params.php
+ *
  * @global array $CONFIG->cookies
  */
 // get the default parameters from php.ini
@@ -271,6 +224,7 @@ $CONFIG->dbencoding = 'utf8mb4';
 //$CONFIG->cookies['session']['domain'] = "";
 //$CONFIG->cookies['session']['secure'] = false;
 //$CONFIG->cookies['session']['httponly'] = false;
+//$CONFIG->cookies['session']['samesite'] = ''; // 'Strict' or 'Lax'
 
 // extended session cookie
 //$CONFIG->cookies['remember_me'] = session_get_cookie_params();
@@ -281,6 +235,7 @@ $CONFIG->dbencoding = 'utf8mb4';
 //$CONFIG->cookies['remember_me']['domain'] = "";
 //$CONFIG->cookies['remember_me']['secure'] = false;
 //$CONFIG->cookies['remember_me']['httponly'] = false;
+//$CONFIG->cookies['remember_me']['samesite'] = ''; // 'Strict' or 'Lax'
 
 /**
  * Disable the database query cache
@@ -399,39 +354,16 @@ $CONFIG->allow_phpinfo = false;
 /**
  * Configure emailer transport
  *
- * This setting can be used to select a different emailer transport. By default the Laminas Sendmail Transport is used.
- * Currently only 'smtp' and 'sendmail' are supported as a different configuration.
- * For 'smtp', the SMTP server's settings must be set, while 'sendmail' requires no configuration.
+ * This setting can be used to select a different emailer transport. By default, the Symfony Sendmail Transport is used.
+ * This setting is a DSN protocol string which sets the configuration options for the different mail transports
+ *
+ * @see https://symfony.com/doc/current/mailer.html#using-built-in-transports
+ *
+ * An example to use SMTP would be 'smtp://user:password@smtp.host.domain:port'
  *
  * @global string $CONFIG->emailer_transport
  */
-//$CONFIG->emailer_transport = 'sendmail';
-
-/**
- * Configure sendmail related settings
- */
-//$CONFIG->emailer_sendmail_settings = '';
-
-/**
- * Configure emailer SMTP settings
- *
- * This setting is only necessary if the above emailer transport is set to 'smtp'.
- * Please refer to https://docs.laminas.dev/laminas-mail/transport/smtp-options/#configuration-options
- * and https://docs.laminas.dev/laminas-mail/transport/smtp-authentication/#examples
- */
-//$CONFIG->emailer_smtp_settings = array(
-//	'name'              => 'localhost.localdomain',
-//	'host'              => '127.0.0.1',
-//	'port'              => 25,
-//	'connection_class'  => 'login',
-//	'connection_config' => [
-//		'username' => 'user',
-//		'password' => 'pass',
-//		'ssl'      => '', // OPTIONAL (tls or ssl)
-//		'port'     => '', // OPTIONAL (Non-SSL default 25, SSL default 465, TLS default 587)
-//		'use_complete_quit' => '', // OPTIONAL
-//	],
-//);
+//$CONFIG->emailer_transport = 'smtp://user:password@smtp.host.domain:port';
 
 /**
  * Configure notification queue delay
@@ -465,9 +397,9 @@ $CONFIG->proxy = [
  * will not be logged during the initial boot.
  *
  * However, if the level is set here, it will be used during the entire request. It can be set to one of
- * the string levels in Elgg\Logger or ''. E.g., use 'INFO' to log all DB queries during boot up.
+ * the constants from \Psr\Log\LogLevel. E.g., use 'info' to log all DB queries during boot up.
  */
-//$CONFIG->debug = 'INFO';
+//$CONFIG->debug = 'info';
 
 /**
  * Language to locale mapping
@@ -478,7 +410,7 @@ $CONFIG->proxy = [
  * For example if you wish to present English dates in USA format make the mapping 'en' => ['en_US'], or if you
  * wish to use UK format 'en' => ['en_UK'].
  *
- * It's possible to configure the locale mapping for mulitple languages, for example:
+ * It's possible to configure the locale mapping for multiple languages, for example:
  * [
  * 	'en' => ['en_US', 'en_UK'],
  * 	'nl' => ['nl_NL'],

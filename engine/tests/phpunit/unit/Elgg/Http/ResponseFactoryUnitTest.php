@@ -3,13 +3,11 @@
 namespace Elgg\Http;
 
 use Elgg\Ajax\Service;
-use Elgg\Amd\Config;
-use Elgg\Config as Config2;
+use Elgg\Config;
 use Elgg\EventsService;
-use Elgg\Exceptions\InvalidArgumentException;
 use Elgg\HandlersService;
 use Elgg\SystemMessagesService;
-use ElggSession;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,13 +16,12 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 
 	/**
-	 *
-	 * @var ElggSession
+	 * @var \ElggSession
 	 */
 	private $session;
 
 	/**
-	 * @var Config2
+	 * @var Config
 	 */
 	private $config;
 
@@ -32,16 +29,6 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 	 * @var Request
 	 */
 	private $request;
-
-	/**
-	 * @var Input
-	 */
-	private $input;
-
-	/**
-	 * @var Config
-	 */
-	private $amd_config;
 
 	/**
 	 * @var SystemMessagesService
@@ -69,9 +56,8 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 		$this->events = new EventsService(new HandlersService());
 		$this->request = $this->createRequest('', 'GET');
 
-		$this->amd_config = new Config($this->events);
 		$this->system_messages = new SystemMessagesService($this->session);
-		$this->ajax = new Service($this->events, $this->system_messages, $this->request, $this->amd_config);
+		$this->ajax = new Service($this->events, $this->system_messages, $this->request, _elgg_services()->esm, _elgg_services()->externalFiles);
 
 		_elgg_services()->logger->disable();
 	}
@@ -83,7 +69,6 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 		$svc->set('config', $this->config);
 		$svc->set('events', $this->events);
 		$svc->set('request', $this->request);
-		$svc->set('amd_config', $this->amd_config);
 		$svc->set('system_messages', $this->system_messages);
 		$svc->set('ajax', $this->ajax);
 
@@ -128,7 +113,6 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	public function testCanPrepareResponse() {
-
 		$service = $this->createService();
 
 		elgg_set_http_header('X-Elgg-Testing: 1');
@@ -191,7 +175,6 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	public function testCanSendReponse() {
-
 		$service = $this->createService();
 
 		ob_start();
@@ -205,7 +188,6 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	public function testSendsReponseOnlyOnce() {
-
 		$service = $this->createService();
 
 		ob_start();
@@ -220,7 +202,6 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	public function testCanNotSendModifiedResponse() {
-
 		$service = $this->createService();
 
 		$response = $service->prepareResponse('foo');
@@ -253,7 +234,14 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 
 		$data = ['foo' => 'bar'];
 		$content = json_encode($data);
-		$wrapped_content = json_encode(['value' => $data]);
+		$wrapped_content = json_encode([
+			'value' => $data,
+			'_elgg_msgs' => (object) [],
+			'_elgg_deps' => [
+				'js' => [],
+				'css' => [],
+			],
+		]);
 
 		$response = $service->send($this->ajax->respondFromOutput($content));
 		$this->assertInstanceOf(JsonResponse::class, $response);
@@ -268,41 +256,6 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 		ob_start();
 		$json_response = $this->ajax->respondFromOutput('foo');
 		ob_get_clean();
-		$this->assertEquals($json_response, $service->send($service->prepareResponse('bar')));
-	}
-
-	public function testCanSendAjaxResponseFromApiResponse() {
-		$service = $this->createService();
-
-		ob_start();
-
-		$data = ['foo' => 'bar'];
-		$wrapped_content = json_encode(['value' => $data]);
-
-		$api_response = new \Elgg\Ajax\Response();
-		$api_response->setData((object) [
-					'value' => $data,
-		]);
-
-		$response = $service->send($this->ajax->respondFromApiResponse($api_response));
-
-		$this->assertInstanceOf(JsonResponse::class, $response);
-		$this->assertEquals($wrapped_content, $response->getContent());
-
-		$output = ob_get_clean();
-		$this->assertEquals($wrapped_content, $output);
-	}
-
-	public function testCanNotSendANewResponseAfterAjaxResponseFromApiResponseIsSent() {
-		$service = $this->createService();
-		$api_response = new \Elgg\Ajax\Response();
-		$api_response->setData((object) [
-					'value' => 'foo',
-		]);
-		ob_start();
-		$json_response = $this->ajax->respondFromApiResponse($api_response);
-		ob_get_clean();
-
 		$this->assertEquals($json_response, $service->send($service->prepareResponse('bar')));
 	}
 
@@ -331,66 +284,14 @@ class ResponseFactoryUnitTest extends \Elgg\UnitTestCase {
 		$this->assertEquals($json_response, $service->send($service->prepareResponse('bar')));
 	}
 
-	public function testCanDetectXhrRequest() {
-
-		$service = $this->createService();
-		$this->assertFalse($service->isXhr());
-
-		$this->request = $this->createRequest('foo', 'POST', [], true);
-		$service = $this->createService();
-
-		$this->assertTrue($service->isXhr());
-	}
-
-	public function testCanDetectActionRequest() {
-		$service = $this->createService();
-		$this->assertFalse($service->isAction());
-
-		$this->request = $this->createRequest('action/foo/bar', 'POST', [], true);
-		$service = $this->createService();
-
-		$this->assertTrue($service->isXhr());
-		$this->assertTrue($service->isAction());
-
-		$this->request = $this->createRequest('action/foo/bar', 'POST');
-		$service = $this->createService();
-
-		$this->assertFalse($service->isXhr());
-		$this->assertTrue($service->isAction());
-	}
-
-	/**
-	 * @dataProvider requestContextDataProvider
-	 */
-	public function testCanParseContext($path, $expected) {
-		$this->request = $this->createRequest($path);
-		$service = $this->createService();
-		$this->assertEquals($expected, $service->parseContext());
-	}
-
-	public function requestContextDataProvider() {
-		return [
-			['ajax/view/foo/bar/', 'view:foo/bar'],
-			['ajax/form/foo/bar/baz/', 'form:foo/bar/baz'],
-			['ajax/foo/bar', 'path:ajax/foo/bar'],
-			['ajax/baz/', 'path:ajax/baz'],
-			['action/foo/bar', 'action:foo/bar'],
-			['action/baz/', 'action:baz'],
-			['cache/foo', 'path:cache/foo'],
-			['foo/bar/ajax', 'path:foo/bar/ajax'],
-		];
-	}
-
-	/**
-	 * @dataProvider stringifyProvider
-	 */
+	#[DataProvider('stringifyProvider')]
 	public function testStringify($input, $expected_output) {
 		$this->createService();
 		
 		$this->assertEquals($expected_output, $this->response_factory->stringify($input));
 	}
 	
-	public function stringifyProvider() {
+	public static function stringifyProvider() {
 		$std = new \stdClass();
 		$std->foo = 'bar';
 		

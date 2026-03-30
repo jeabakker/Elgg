@@ -1,4 +1,5 @@
 <?php
+
 use Elgg\WebServices\Di\RestApiErrorHandler;
 
 /**
@@ -7,25 +8,28 @@ use Elgg\WebServices\Di\RestApiErrorHandler;
 abstract class GenericResult {
 	
 	/**
-	 * The status of the result.
-	 * @var int
+	 * The HTTP status of the result
 	 */
-	private $status_code;
+	protected int $http_status_code;
+
+	/**
+	 * The status of the result
+	 */
+	protected int $status_code;
 
 	/**
 	 * Message returned along with the status which is almost always an error message.
-	 * This must be human readable, understandable and localised.
-	 * @var string
+	 * This must be human-readable, understandable and localized
 	 */
-	private $message;
+	protected string $message;
 
 	/**
 	 * Result store.
-	 * Attach result specific informaton here.
+	 * Attach result specific information here.
 	 *
 	 * @var mixed Should probably be an object of some sort.
 	 */
-	private $result;
+	protected mixed $result = null;
 
 	/**
 	 * Set a status code and optional message.
@@ -35,7 +39,7 @@ abstract class GenericResult {
 	 *
 	 * @return void
 	 */
-	protected function setStatusCode($status, $message = '') {
+	protected function setStatusCode(int $status, string $message = ''): void {
 		$this->status_code = $status;
 		$this->message = $message;
 	}
@@ -47,43 +51,43 @@ abstract class GenericResult {
 	 *
 	 * @return void
 	 */
-	protected function setResult($result) {
+	protected function setResult(mixed $result): void {
 		$this->result = $result;
 	}
 
 	/**
 	 * Return the current status code
 	 *
-	 * @return string
+	 * @return int
 	 */
-	protected function getStatusCode() {
+	protected function getStatusCode(): int {
 		return $this->status_code;
 	}
 
 	/**
 	 * Return the current status message
 	 *
-	 * @return string
+	 * @return null|string
 	 */
-	protected function getStatusMessage() {
+	protected function getStatusMessage(): ?string {
 		return $this->message;
 	}
 
 	/**
 	 * Return the current result
 	 *
-	 * @return string
+	 * @return mixed
 	 */
-	protected function getResult() {
+	protected function getResult(): mixed {
 		return $this->result;
 	}
 
 	/**
-	 * Serialise to a standard class.
+	 * Serialize to a standard class.
 	 *
-	 * DEVNOTE: The API is only interested in data, we can not easily serialise
+	 * DEVNOTE: The API is only interested in data, we can not easily serialize
 	 * custom classes without the need for 1) the other side being PHP, 2) you need to have the class
-	 * definition installed, 3) its the right version!
+	 * definition installed, 3) it's the right version!
 	 *
 	 * Therefore, I'm not bothering.
 	 *
@@ -93,9 +97,9 @@ abstract class GenericResult {
 	 * if ELGG_DEBUG is set then additional information about the runtime environment and
 	 * authentication will be returned.
 	 *
-	 * @return \stdClass Object containing the serialised result.
+	 * @return \stdClass Object containing the serialized result.
 	 */
-	public function export() {
+	public function export(): \stdClass {
 		$result = new \stdClass;
 
 		$result->status = $this->getStatusCode();
@@ -116,5 +120,27 @@ abstract class GenericResult {
 		}
 
 		return $result;
+	}
+	
+	/**
+	 * Set the HTTP status code for the result
+	 *
+	 * @param int $status HTTP status code
+	 *
+	 * @return void
+	 * @since 7.0
+	 */
+	public function setHttpStatus(int $status): void {
+		$this->http_status_code = $status;
+	}
+	
+	/**
+	 * Get the HTTP status code
+	 *
+	 * @return int
+	 * @since 7.0
+	 */
+	public function getHttpStatus(): int {
+		return $this->http_status_code;
 	}
 }

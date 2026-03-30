@@ -3,12 +3,11 @@
 namespace Elgg\Integration;
 
 use Elgg\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class RouterIntegrationTest extends IntegrationTestCase {
-	
-	/**
-	 * @dataProvider urlProvider
-	 */
+
+	#[DataProvider('urlProvider')]
 	public function testUrlGenerationNormalization($site_url) {
 		$this->createApplication([
 			'isolate' => true,
@@ -31,9 +30,7 @@ class RouterIntegrationTest extends IntegrationTestCase {
 		$this->assertStringStartsWith(elgg_get_site_url(), $url);
 	}
 
-	/**
-	 * @dataProvider urlProvider
-	 */
+	#[DataProvider('urlProvider')]
 	public function testUrlGenerationSchemeCorrection($site_url) {
 		$this->createApplication([
 			'isolate' => true,
@@ -62,7 +59,7 @@ class RouterIntegrationTest extends IntegrationTestCase {
 		$this->assertEquals("{$site_url}foo/bar/test", $url);
 	}
 	
-	public function urlProvider() {
+	public static function urlProvider() {
 		return [
 			['http://localhost/'],
 			['http://localhost/sub/'],

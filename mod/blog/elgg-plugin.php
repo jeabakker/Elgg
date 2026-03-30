@@ -1,5 +1,6 @@
 <?php
 
+use Elgg\Blog\Controllers\ContentListing;
 use Elgg\Blog\Forms\PrepareFields;
 use Elgg\Blog\GroupToolContainerLogicCheck;
 use Elgg\Blog\Notifications\PublishBlogEventHandler;
@@ -13,21 +14,33 @@ return [
 		[
 			'type' => 'object',
 			'subtype' => 'blog',
-			'class' => 'ElggBlog',
+			'class' => \ElggBlog::class,
 			'capabilities' => [
 				'commentable' => true,
+				'river_emittable' => true,
 				'searchable' => true,
+				'subscribable' => true,
 				'likable' => true,
+				'restorable' => true,
 			],
 		],
 	],
 	'actions' => [
-		'blog/save' => [],
+		'blog/edit' => [
+			'controller' => \Elgg\Blog\Controllers\EditAction::class,
+			'options' => [
+				'entity_type' => 'object',
+				'entity_subtype' => 'blog',
+			],
+		],
 	],
 	'routes' => [
 		'collection:object:blog:owner' => [
 			'path' => '/blog/owner/{username}/{lower?}/{upper?}',
-			'resource' => 'blog/owner',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'blog/sidebar',
+			],
 			'requirements' => [
 				'lower' => '\d+',
 				'upper' => '\d+',
@@ -38,7 +51,10 @@ return [
 		],
 		'collection:object:blog:friends' => [
 			'path' => '/blog/friends/{username}/{lower?}/{upper?}',
-			'resource' => 'blog/friends',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'blog/sidebar',
+			],
 			'requirements' => [
 				'lower' => '\d+',
 				'upper' => '\d+',
@@ -73,26 +89,26 @@ return [
 			],
 		],
 		'collection:object:blog:group' => [
-			'path' => '/blog/group/{guid}/{subpage?}/{lower?}/{upper?}',
-			'resource' => 'blog/group',
-			'defaults' => [
-				'subpage' => 'all',
+			'path' => '/blog/group/{guid}/{lower?}/{upper?}',
+			'controller' => ContentListing::class,
+			'options' => [
+				'group_tool' => 'blog',
+				'sidebar_view' => 'blog/sidebar',
 			],
 			'requirements' => [
-				'subpage' => 'all|archive',
 				'lower' => '\d+',
 				'upper' => '\d+',
 			],
 			'required_plugins' => [
 				'groups',
 			],
-			'middleware' => [
-				\Elgg\Router\Middleware\GroupPageOwnerGatekeeper::class,
-			],
 		],
 		'collection:object:blog:all' => [
 			'path' => '/blog/all/{lower?}/{upper?}',
-			'resource' => 'blog/all',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'blog/sidebar',
+			],
 			'requirements' => [
 				'lower' => '\d+',
 				'upper' => '\d+',
@@ -100,7 +116,10 @@ return [
 		],
 		'default:object:blog' => [
 			'path' => '/blog',
-			'resource' => 'blog/all',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'blog/sidebar',
+			],
 		],
 	],
 	'events' => [
@@ -109,8 +128,13 @@ return [
 				GroupToolContainerLogicCheck::class => [],
 			],
 		],
+		'entity:url' => [
+			'object:widget' => [
+				'Elgg\Blog\Widgets::blogWidgetUrl' => [],
+			],
+		],
 		'form:prepare:fields' => [
-			'blog/save' => [
+			'blog/edit' => [
 				PrepareFields::class => [],
 			],
 		],
@@ -124,9 +148,6 @@ return [
 			],
 			'menu:site' => [
 				'Elgg\Blog\Menus\Site::register' => [],
-			],
-			'menu:title:object:blog' => [
-				\Elgg\Notifications\RegisterSubscriptionMenuItemsHandler::class => [],
 			],
 		],
 		'seeds' => [
@@ -146,8 +167,12 @@ return [
 	'notifications' => [
 		'object' => [
 			'blog' => [
-				'publish' => PublishBlogEventHandler::class,
-				'mentions' => \Elgg\Notifications\MentionsEventHandler::class,
+				'publish' => [
+					PublishBlogEventHandler::class => [],
+				],
+				'mentions' => [
+					\Elgg\Notifications\Handlers\Mentions::class => [],
+				],
 			],
 		],
 	],

@@ -3,12 +3,13 @@
 namespace Elgg\Controllers;
 
 use Elgg\Exceptions\Http\EntityNotFoundException;
+use Elgg\Exceptions\Http\PageNotFoundException;
 use Elgg\Http\OkResponse;
 use Elgg\Http\ResponseBuilder;
 use Elgg\Request;
 use Elgg\Traits\TimeUsing;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Controller to handle /serve-icon requests
@@ -26,7 +27,7 @@ class ServeIcon {
 	 * @param Request $request the HTTP request
 	 *
 	 * @return ResponseBuilder
-	 * @throws EntityNotFoundException
+	 * @throws PageNotFoundException
 	 */
 	public function __invoke(Request $request) {
 		
@@ -47,7 +48,7 @@ class ServeIcon {
 		
 		$thumbnail = $entity->getIcon($size);
 		if (!$thumbnail->exists()) {
-			throw new EntityNotFoundException('Icon does not exist');
+			throw new PageNotFoundException('Icon does not exist');
 		}
 		
 		$if_none_match = $request->getHttpRequest()->headers->get('if_none_match');
@@ -82,7 +83,7 @@ class ServeIcon {
 			->setExpires($this->getCurrentTime('+1 day'))
 			->setMaxAge(86400);
 		
-		if (!$response->headers->hasCacheControlDirective('no-cache')) {
+		if (!empty($response->headers->getCookies()) && !$response->headers->hasCacheControlDirective('no-cache')) {
 			$response->headers->addCacheControlDirective('no-cache', 'Set-Cookie');
 		}
 		

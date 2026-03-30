@@ -3,6 +3,7 @@
 namespace Elgg\WebServices;
 
 use Elgg\Plugins\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ElggApiClientIntegrationTest extends IntegrationTestCase {
 
@@ -32,10 +33,8 @@ class ElggApiClientIntegrationTest extends IntegrationTestCase {
 		$this->assertInstanceOf(ElggApiClient::class, $client->setParams(['bar' => 'foo']));
 		$this->assertEquals(['bar' => 'foo'], $client->getParams());
 	}
-	
-	/**
-	 * @dataProvider validMethodProvider
-	 */
+
+	#[DataProvider('validMethodProvider')]
 	public function testGetSetMethod($method) {
 		// test set by constructor
 		$client = new ElggApiClient('http://localhost', [], $method);
@@ -46,7 +45,7 @@ class ElggApiClientIntegrationTest extends IntegrationTestCase {
 		$this->assertEquals(strtoupper($method), $client->getMethod());
 	}
 	
-	public function validMethodProvider() {
+	public static function validMethodProvider() {
 		return [
 			['get'],
 			['GET'],
@@ -54,18 +53,14 @@ class ElggApiClientIntegrationTest extends IntegrationTestCase {
 			['POST'],
 		];
 	}
-	
-	/**
-	 * @dataProvider invalidMethodProvider
-	 */
+
+	#[DataProvider('invalidMethodProvider')]
 	public function testConstructorWithInvalidMethod($method) {
 		$this->expectException(\APIException::class);
 		new ElggApiClient('http://localhost', [], $method);
 	}
-	
-	/**
-	 * @dataProvider invalidMethodProvider
-	 */
+
+	#[DataProvider('invalidMethodProvider')]
 	public function testSetMethodWithInvalidMethod($method) {
 		$client = new ElggApiClient('http://localhost');
 		
@@ -73,7 +68,7 @@ class ElggApiClientIntegrationTest extends IntegrationTestCase {
 		$client->setMethod($method);
 	}
 	
-	public function invalidMethodProvider() {
+	public static function invalidMethodProvider() {
 		return [
 			['PUT'],
 			['HEAD'],
@@ -84,16 +79,10 @@ class ElggApiClientIntegrationTest extends IntegrationTestCase {
 	public function testSetApiKeys() {
 		$client = new ElggApiClient('http://localhost');
 		
-		$reflection_public = new \ReflectionProperty(ElggApiClient::class, 'public_api_key');
-		$reflection_public->setAccessible(true);
-		
-		$reflection_private = new \ReflectionProperty(ElggApiClient::class, 'private_api_key');
-		$reflection_private->setAccessible(true);
-		
 		$client->setApiKeys('foo', 'bar');
 		
-		$this->assertEquals('foo', $reflection_public->getValue($client));
-		$this->assertEquals('bar', $reflection_private->getValue($client));
+		$this->assertEquals('foo', $this->getInaccessableProperty($client, 'public_api_key'));
+		$this->assertEquals('bar', $this->getInaccessableProperty($client, 'private_api_key'));
 	}
 	
 	public function testExecuteRequest() {
@@ -112,10 +101,7 @@ class ElggApiClientIntegrationTest extends IntegrationTestCase {
 		$client = new ElggApiClient('http://localhost?api=foo&var1=bar');
 		$this->assertEquals([], $client->getParams());
 		
-		$reflection = new \ReflectionMethod(ElggApiClient::class, 'prepareRequest');
-		$reflection->setAccessible(true);
-		
-		$reflection->invoke($client);
+		$this->invokeInaccessableMethod($client, 'prepareRequest');
 		
 		$this->assertEquals([
 			'api' => 'foo',
@@ -127,10 +113,7 @@ class ElggApiClientIntegrationTest extends IntegrationTestCase {
 		$client = new ElggApiClient('http://localhost?api=foo&var1=bar', ['method' => 'system.api.list'], 'POST');
 		$this->assertEquals(['method' => 'system.api.list'], $client->getParams());
 		
-		$reflection = new \ReflectionMethod(ElggApiClient::class, 'prepareRequest');
-		$reflection->setAccessible(true);
-		
-		$reflection->invoke($client);
+		$this->invokeInaccessableMethod($client, 'prepareRequest');
 		
 		$this->assertEquals([
 			'api' => 'foo',

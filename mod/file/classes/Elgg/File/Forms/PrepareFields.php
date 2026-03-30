@@ -3,7 +3,7 @@
 namespace Elgg\File\Forms;
 
 /**
- * Prepare the fields for the file/upload form
+ * Prepare the fields for the file/edit form
  *
  * @since 5.0
  */
@@ -12,7 +12,7 @@ class PrepareFields {
 	/**
 	 * Prepare fields
 	 *
-	 * @param \Elgg\Event $event 'form:prepare:fields', 'file/upload'
+	 * @param \Elgg\Event $event 'form:prepare:fields', 'file/edit'
 	 *
 	 * @return array
 	 */
@@ -21,20 +21,28 @@ class PrepareFields {
 		
 		// input names => defaults
 		$values = [
-			'title' => '',
-			'description' => '',
-			'access_id' => ACCESS_DEFAULT,
-			'tags' => '',
 			'container_guid' => elgg_get_page_owner_guid(),
-			'guid' => null,
 		];
+		
+		$fields = elgg()->fields->get('object', 'file');
+		foreach ($fields as $field) {
+			$default_value = null;
+			
+			$name = (string) elgg_extract('name', $field);
+			if (elgg_extract('#type', $field) === 'file') {
+				// don't set file input values
+				continue;
+			}
+			
+			$values[$name] = $default_value;
+		}
 		
 		$file = elgg_extract('entity', $vars);
 		if ($file instanceof \ElggFile) {
 			// load current file values
 			foreach (array_keys($values) as $field) {
-				if (isset($file->$field)) {
-					$values[$field] = $file->$field;
+				if (isset($file->{$field})) {
+					$values[$field] = $file->{$field};
 				}
 			}
 		}

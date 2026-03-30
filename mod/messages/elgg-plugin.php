@@ -1,6 +1,7 @@
 <?php
 
 use Elgg\Messages\Forms\PrepareFields;
+use Elgg\Messages\Notifications\SendMessageHandler;
 
 require_once(__DIR__ . '/lib/functions.php');
 
@@ -9,13 +10,15 @@ return [
 		'name' => 'Messages',
 		'activate_on_install' => true,
 	],
+	'settings' => [
+		'friends_only' => false,
+	],
 	'entities' => [
 		[
 			'type' => 'object',
 			'subtype' => 'messages',
-			'class' => 'ElggMessage',
+			'class' => \ElggMessage::class,
 			'capabilities' => [
-				'commentable' => false,
 				'searchable' => true,
 			],
 		],
@@ -29,6 +32,7 @@ return [
 			'path' => '/messages/inbox/{username}',
 			'resource' => 'messages/inbox',
 			'middleware' => [
+				\Elgg\Router\Middleware\Gatekeeper::class,
 				\Elgg\Router\Middleware\UserPageOwnerCanEditGatekeeper::class,
 			],
 		],
@@ -36,6 +40,7 @@ return [
 			'path' => '/messages/sent/{username}',
 			'resource' => 'messages/sent',
 			'middleware' => [
+				\Elgg\Router\Middleware\Gatekeeper::class,
 				\Elgg\Router\Middleware\UserPageOwnerCanEditGatekeeper::class,
 			],
 		],
@@ -50,13 +55,9 @@ return [
 			'path' => '/messages/read/{guid}',
 			'resource' => 'messages/read',
 			'middleware' => [
+				\Elgg\Router\Middleware\Gatekeeper::class,
 				\Elgg\Router\Middleware\UserPageOwnerCanEditGatekeeper::class,
 			],
-		],
-	],
-	'view_extensions' => [
-		'elgg.css' => [
-			'messages/css' => [],
 		],
 	],
 	'events' => [
@@ -85,7 +86,18 @@ return [
 			],
 		],
 	],
-	'settings' => [
-		'friends_only' => false,
+	'notifications' => [
+		'object' => [
+			'messages' => [
+				'send' => [
+					SendMessageHandler::class => [],
+				],
+			],
+		],
+	],
+	'view_extensions' => [
+		'elgg.css' => [
+			'messages/css' => [],
+		],
 	],
 ];

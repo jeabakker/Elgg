@@ -4,16 +4,19 @@ namespace Elgg\Views;
 
 use Elgg\Exceptions\InvalidArgumentException;
 use Elgg\UnitTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class HtmlFormatterUnitTest extends UnitTestCase {
 
+	protected ?HtmlFormatter $htmlFormatter;
+	
 	public function up() {
 		elgg_register_event_handler('sanitize', 'input', \Elgg\Input\ValidateInputHandler::class);
+		
+		$this->htmlFormatter = _elgg_services()->html_formatter;
 	}
 
-	/**
-	 * @dataProvider htmlBlockProvider
-	 */
+	#[DataProvider('htmlBlockProvider')]
 	public function testCanFormatHTMLBlock($before, $after) {
 
 		$actual = elgg_format_html($before);
@@ -26,7 +29,7 @@ class HtmlFormatterUnitTest extends UnitTestCase {
 		$this->assertXmlStringEqualsXmlString($after, $actual);
 	}
 
-	public function htmlBlockProvider() {
+	public static function htmlBlockProvider() {
 
 		$attrs = _elgg_services()->html_formatter->formatAttributes([
 			'foo' => 'http://example.com',
@@ -129,9 +132,7 @@ class HtmlFormatterUnitTest extends UnitTestCase {
 		$event->unregister();
 	}
 
-	/**
-	 * @dataProvider providerElggFormatElement
-	 */
+	#[DataProvider('providerElggFormatElement')]
 	public function testElggFormatElement($expected, $vars) {
 		$tag_name = $vars['tag_name'];
 		$text = $vars['text'] ?? '';
@@ -148,7 +149,7 @@ class HtmlFormatterUnitTest extends UnitTestCase {
 		elgg_format_element('');
 	}
 
-	function providerElggFormatElement() {
+	public static function providerElggFormatElement() {
 		$data = [
 			'<span>a & b</span>' => array(
 				'tag_name' => 'span',
@@ -192,15 +193,13 @@ class HtmlFormatterUnitTest extends UnitTestCase {
 		return $ret;
 	}
 
-	/**
-	 * @dataProvider providerElggGetFriendlyTime
-	 */
+	#[DataProvider('providerElggGetFriendlyTime')]
 	public function testElggGetFriendlyTime($num_seconds, $friendlytime) {
 		$current_time = time();
 		$this->assertSame(elgg_get_friendly_time($current_time + $num_seconds, $current_time), $friendlytime);
 	}
 
-	function providerElggGetFriendlyTime() {
+	public static function providerElggGetFriendlyTime() {
 		self::createApplication();
 
 		return [
@@ -233,12 +232,12 @@ class HtmlFormatterUnitTest extends UnitTestCase {
 				[],
 			],
 			'i' => [
-				new \ElggObject(),
+				new \Elgg\Helpers\ElggTestObject(),
 			],
 		];
 		$expected = 'a="Hello &amp; &amp; &lt; &lt;" c="c" e="&amp; &amp; &lt; &lt;" g="bar 1 1.5 2"';
 
-		$this->assertEquals($expected, _elgg_services()->html_formatter->formatAttributes($attrs));
+		$this->assertEquals($expected, $this->htmlFormatter->formatAttributes($attrs));
 	}
 
 	public function testFiltersUnderscoreKeysExceptDataAttributes() {
@@ -248,7 +247,7 @@ class HtmlFormatterUnitTest extends UnitTestCase {
 		];
 		$expected = 'data-foo_bar="b"';
 
-		$this->assertEquals($expected, _elgg_services()->html_formatter->formatAttributes($attrs));
+		$this->assertEquals($expected, $this->htmlFormatter->formatAttributes($attrs));
 	}
 
 	public function testLowercasesAllAttributes() {
@@ -258,7 +257,7 @@ class HtmlFormatterUnitTest extends UnitTestCase {
 		];
 		$expected = 'a-b="a-b" c-d="C-D"';
 
-		$this->assertEquals($expected, _elgg_services()->html_formatter->formatAttributes($attrs));
+		$this->assertEquals($expected, $this->htmlFormatter->formatAttributes($attrs));
 	}
 	
 	public function testInlineCss() {
@@ -266,13 +265,67 @@ class HtmlFormatterUnitTest extends UnitTestCase {
 		$css = 'p { color: red; }';
 		$expected = '<p style="color: red;">test</p>';
 		
-		$this->assertEquals($expected, _elgg_services()->html_formatter->inlineCss($html, $css, true));
+		$this->assertEquals($expected, $this->htmlFormatter->inlineCss($html, $css, true));
 	}
 	
 	public function testNormalizeUrls() {
 		$text = 'foo <a href="/blog">link</a> /bar.php <img src="/link_to_image.jpg"/>';
 		$expected = 'foo <a href="' . elgg_get_site_url() . 'blog">link</a> /bar.php <img src="' . elgg_get_site_url() . 'link_to_image.jpg"/>';
 		
-		$this->assertEquals($expected, _elgg_services()->html_formatter->normalizeUrls($text));
+		$this->assertEquals($expected, $this->htmlFormatter->normalizeUrls($text));
+	}
+
+	#[DataProvider('stripTagsProvider')]
+	public function testStripTags($input, $expected_output, $allowed_tags) {
+		$event = $this->registerTestingEvent('format', 'strip_tags', function (\Elgg\Event $event) {
+		});
+		
+		$result = $this->htmlFormatter->stripTags($input, $allowed_tags);
+		
+		$event->assertNumberOfCalls(1);
+		
+		$event->assertParamBefore('original_string', $input);
+		$event->assertParamBefore('allowable_tags', $allowed_tags);
+		
+		$event->assertParamAfter('original_string', $input);
+		$event->assertParamAfter('allowable_tags', $allowed_tags);
+		
+		$this->assertEquals($expected_output, $result);
+	}
+	
+	public static function stripTagsProvider() {
+		return [
+			['This is a test.', 'This is a test.', null],
+			[' This is a test. ', ' This is a test. ', null],
+			[' This is a  test. ', ' This is a  test. ', null],
+			['<p>This is a test.</p>', 'This is a test.', null],
+			['This is a<br/>test.', 'This is a test.', null],
+			['This is a<br />test.', 'This is a test.', null],
+			['This is a<hr/>test.', 'This is a test.', null],
+			['This is a<hr />test.', 'This is a test.', null],
+			['.<p>This is a test.</p> ', '. This is a test. ', null],
+			[' <p>This is a test.</p> ', ' This is a test. ', null],
+			[' <p>This is a   test.</p> ', ' This is a   test. ', null],
+			[' <p>This is a  <p></p> test.</p> ', ' This is a   test. ', null],
+			['This is a <div>test.</div>', 'This is a test.', null],
+			['This is a<div>test.</div>', 'This is a test.', null],
+			['This is a<b>test.</b>', 'This is atest.', null],
+			['<p>This is a test.', 'This is a test.', null],
+			['This is a test.</p>', 'This is a test.', null],
+			['<p>This is a test.</p>', '<p>This is a test.</p>', '<p>'],
+			['<foo>This is a test.</foo>', 'This is a test.', null],
+			['<foo>This is a test.</foo>', '<foo>This is a test.</foo>', '<foo>'],
+			['aaaaaaaaa<p></p><p></p><p></p><p></p><p></p><p></p>b', 'aaaaaaaaa b', null],
+			['<p>This is a test.</p><p>This is a test.</p>', 'This is a test. This is a test.', null],
+			[str_repeat("<p>This is a test.</p>\n", 10), str_repeat("This is a test.\n", 10), null],
+			['<div>This is a test.</div><p>This is a test.</p>', 'This is a test. This is a test.', null],
+			["<div>This is a test.</div>\n<p>This is a test.</p>", "This is a test.\nThis is a test.", null],
+			['<div>This is a test.</div><div>This is a test.</div>', 'This is a test. This is a test.', null],
+			["<div>This is a test.</div>\n<div>This is a test.</div>", "This is a test.\nThis is a test.", null],
+			['<p>This is a <a href="javascript:void(0);">test</a>.</p>', 'This is a test.', null],
+			['<p>This is a<a href="javascript:void(0);">test</a>.</p>', 'This is atest.', null],
+			['<p>This is a <a href="javascript:void(0);">test</a>.</p>', '<p>This is a test.</p>', '<p>'],
+			['<p>This is a <a href="javascript:void(0);">test</a>.</p>', 'This is a <a href="javascript:void(0);">test</a>.', '<a>'],
+		];
 	}
 }

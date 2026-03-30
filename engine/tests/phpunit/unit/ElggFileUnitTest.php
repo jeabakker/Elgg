@@ -3,6 +3,7 @@
 use Elgg\Exceptions\DomainException;
 use Elgg\Exceptions\Filesystem\IOException;
 use Elgg\Project\Paths;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ElggFileUnitTest extends \Elgg\UnitTestCase {
 
@@ -45,16 +46,14 @@ class ElggFileUnitTest extends \Elgg\UnitTestCase {
 		$this->assertEquals($mimetype, $this->file->getMimeType());
 	}
 
-	/**
-	 * @dataProvider providerSimpleTypeMap
-	 */
+	#[DataProvider('providerSimpleTypeMap')]
 	public function testCanParseSimpleType($mime_type, $simple_type) {
 		unset($this->file->simpletype);
 		$this->file->mimetype = $mime_type;
 		$this->assertEquals($simple_type, $this->file->getSimpleType());
 	}
 
-	function providerSimpleTypeMap() {
+	public static function providerSimpleTypeMap() {
 		return [
 			[
 				'x-world/x-svr',
@@ -236,7 +235,7 @@ class ElggFileUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	public function testCanCreateAndReadSymlinks() {
-		if (stripos(PHP_OS, 'WIN') !== false) {
+		if (PHP_OS_FAMILY === 'Windows') {
 			$this->markTestSkipped('Unable to test symlinks on Windows');
 		}
 
@@ -284,34 +283,8 @@ class ElggFileUnitTest extends \Elgg\UnitTestCase {
 		$this->assertFalse($symlink->exists());
 	}
 
-	public function testCanDeleteSymlinkAndKeepTarget() {
-		if (stripos(PHP_OS, 'WIN') !== false) {
-			$this->markTestSkipped('Unable to test symlinks on Windows');
-		}
-
-		$to = new \ElggFile();
-		$to->owner_guid = 2;
-		$to->setFilename('symlink-target.txt');
-		$to->open('write');
-		$to->close();
-
-		$from = new \ElggFile();
-		$from->owner_guid = 2;
-		$from->setFilename('symlink.txt');
-
-		$to_filename = $to->getFilenameOnFilestore();
-		$from_filename = $from->getFilenameOnFilestore();
-
-		// Delete the symlink but keep the target
-		$this->assertTrue(symlink($to_filename, $from_filename));
-		$this->assertTrue($from->delete(false));
-		$this->assertFalse($from->exists());
-		$this->assertFalse(is_link($from_filename));
-		$this->assertTrue($to->exists());
-	}
-
 	public function testCanDeleteSymlinkAndTarget() {
-		if (stripos(PHP_OS, 'WIN') !== false) {
+		if (PHP_OS_FAMILY === 'Windows') {
 			$this->markTestSkipped('Unable to test symlinks on Windows');
 		}
 
@@ -337,7 +310,7 @@ class ElggFileUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	public function testCanDeleteSymlinkWithMissingTarget() {
-		if (stripos(PHP_OS, 'WIN') !== false) {
+		if (PHP_OS_FAMILY === 'Windows') {
 			$this->markTestSkipped('Unable to test symlinks on Windows');
 		}
 
@@ -451,10 +424,8 @@ class ElggFileUnitTest extends \Elgg\UnitTestCase {
 
 		$file->delete();
 	}
-	
-	/**
-	 * @dataProvider pathTraversalProvider
-	 */
+
+	#[DataProvider('pathTraversalProvider')]
 	public function testPathTraversal($filename, $expected_filename, $expected_path) {
 		$file = new \ElggFile();
 		$file->owner_guid = elgg_get_site_entity()->guid;
@@ -471,7 +442,7 @@ class ElggFileUnitTest extends \Elgg\UnitTestCase {
 		$this->assertEquals($expected_path, $file->getFilenameOnFilestore());
 	}
 	
-	public function pathTraversalProvider() {
+	public static function pathTraversalProvider() {
 		$dataroot = elgg_get_data_path();
 		
 		return [

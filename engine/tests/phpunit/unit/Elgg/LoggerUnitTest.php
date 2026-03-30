@@ -14,12 +14,6 @@ class LoggerUnitTest extends \Elgg\UnitTestCase {
 	public function up() {
 		$this->service = _elgg_services()->logger;
 	}
-	
-	public function testLoggingOff() {
-		$logger = $this->service;
-		$logger->setLevel(false);
-		$logger->log(LogLevel::NOTICE, "hello");
-	}
 
 	public function testLoggingLevelTooLow() {
 		$logger = $this->service;
@@ -29,6 +23,7 @@ class LoggerUnitTest extends \Elgg\UnitTestCase {
 
 	public function testLoggingLevelNotExist() {
 		$logger = $this->service;
+		$this->expectException(\Elgg\Exceptions\InvalidArgumentException::class);
 		$logger->log(12, "hello");
 	}
 

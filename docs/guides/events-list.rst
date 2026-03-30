@@ -10,7 +10,7 @@ For more information on how events work visit :doc:`/design/events`.
 .. note::
 
 	Some events are marked with |sequence| this means those events also have a ``:before`` and ``:after`` event
-	Also see :ref:`Event sequence <design/events#event-sequence>`
+	Also see :ref:`Event sequence <event-sequence>`
 
 	Some events are marked with |results| this means those events allow altering the output of an event
 
@@ -21,8 +21,7 @@ System events
     Return false to prevent activation of the plugin.
     
 **cache:clear, system** |sequence|
-    Clear internal and external caches, by default including system_cache, simplecache, and memcache. One might use it to 
-    reset others such as APC, OPCache, or WinCache.
+    Clear internal and external caches.
 
 **cache:generate, <view>** |results|
 	Filters the view output for a ``/cache`` URL when simplecache is disabled. Note this will be fired
@@ -41,6 +40,12 @@ System events
 **cron, <period>** |results|
 	Triggered by cron for each period.
 
+	The ``$params`` array will contain:
+
+	 * ``time`` - the timestamp of when the cron command was started
+	 * ``dt`` - the ``\DateTimeImmutable`` object of when the cron command was started
+	 * ``logger`` - instance of ``\Elgg\Logger\Cron`` to log any information to the cron log
+
 **cron:intervals, system** |results|
 	Allow the configuration of custom cron intervals
 
@@ -51,10 +56,7 @@ System events
 	Filter the output for the diagnostics report download.
 
 **elgg.data, page** |results|
-   Filters uncached, page-specific configuration data to pass to the client. :ref:`More info <guides/javascript#config>`
-   
-**elgg.data, site** |results|
-   Filters cached configuration data to pass to the client. :ref:`More info <guides/javascript#config>`
+   Filters uncached, page-specific configuration data to pass to the client. :doc:`More info </guides/javascript>`
    
 **format, friendly:title** |results|
 	Formats the "friendly" title for strings. This is used for generating URLs.
@@ -221,7 +223,7 @@ System events
     might not be shown until after the process is completed. This means that any long-running
     processes will still delay the page load.
 
-.. note:: This event is prefered above using ``register_shutdown_function`` as you may not have access
+.. note:: This event is preferred above using ``register_shutdown_function`` as you may not have access
     to all the Elgg services (eg. database) in the shutdown function but you will in the event.
 
 .. note:: The Elgg session is already closed before this event. Manipulating session is not possible.
@@ -233,7 +235,7 @@ System events
 	Triggered after a system upgrade has finished. All upgrade scripts have run, but the caches 
 	are not cleared.
 
-**upgrade:execute, system** |sequence|
+**upgrade:execute, system** |sequence| |results|
 	Triggered when executing an ``ElggUpgrade``. The ``$object`` of the event is the ``ElggUpgrade``.
 
 User events
@@ -256,11 +258,8 @@ User events
 **invalidate:after, user**
     Triggered when user's account validation has been revoked.
     
-**login:after, user**
-	Triggered after the user logs in.
-
-**login:before, user**
-    Triggered during login. Returning false prevents the user from logging
+**login, user** |sequence|
+	Triggered when a user is being logged in.
     
 **login:forward, user** |results|
     Filters the URL to which the user will be forwarded after login.
@@ -337,13 +336,11 @@ User events
 Relationship events
 ===================
 
-**create, relationship**
-    Triggered after a relationship has been created. Returning false deletes
-    the relationship that was just created.
+**create, relationship** |sequence|
+    Triggered during the creation of a relationship.
 
-**delete, relationship**
-    Triggered before a relationship is deleted. Return false to prevent it
-    from being deleted.
+**delete, relationship** |sequence|
+    Triggered during the deletion of a relationship.
 
 **join, group**
     Triggered after the user ``$params['user']`` has joined the group ``$params['group']``.
@@ -371,14 +368,8 @@ Entity events
 **create:before, <entity type>**
     Triggered for user, group, object, and site entities before creation. Return false to prevent creating the entity.
 
-**delete, <entity type>**
-    Triggered before entity deletion.
-
-**delete:after, <entity type>**
-    Triggered after entity deletion.
-
-**delete:before, <entity type>**
-    Triggered before entity deletion. Return false to prevent deletion.
+**delete, <entity type>** |sequence|
+    Triggered when an entity is permanently removed from the database. Also see :doc:`/guides/restore`
 
 **disable, <entity type>**
     Triggered before the entity is disabled. Return false to prevent disabling.
@@ -394,7 +385,10 @@ Entity events
 
 **likes:count, <entity_type>** |results|
 	Return the number of likes for ``$params['entity']``.
-	
+
+**trash, <entity type>** |sequence|
+    Triggered when an entity is marked as deleted in the database. Also see :doc:`/guides/restore`
+
 **update, <entity type>**
     Triggered before an update for the user, group, object, and site entities. Return false to prevent update.
     The entity method ``getOriginalAttributes()`` can be used to identify which attributes have changed since
@@ -431,12 +425,6 @@ Annotation events
 
 **delete, annotation**
     Called before annotation is deleted. Return false to prevent deletion.
-
-**disable, annotations**
-	Called when disabling annotations. Return false to prevent disabling.
-	
-**enable, annotation**
-	Called when enabling annotations. Return false to prevent enabling.
 	
 **update, annotation**
     Called after the annotation has been updated. Return false to *delete the annotation.*
@@ -646,7 +634,7 @@ Note that not all events apply to instant notifications.
 	Filters subscribers of the notification event.
 	Applies to **subscriptions** and **instant** notifications.
 	In case of a subscription event, by default, the subscribers list consists of the users subscribed to the container entity of the event object.
-	In case of an instant notification event, the subscribers list consists of the users passed as recipients to ``notify_user()``
+	In case of an instant notification event, the subscribers list consists of the user passed as recipient to ``elgg_notify_user()``
 
    **IMPORTANT** Always validate the notification event, object and/or action types before adding any new recipients to ensure that you do not accidentally dispatch notifications to unintended recipients.
    Consider a situation, where a mentions plugin sends out an instant notification to a mentioned user - any event acting on a subject or an object without validating an event or action type (e.g. including an owner of the original wire thread) might end up sending notifications to wrong users.
@@ -656,6 +644,7 @@ Note that not all events apply to instant notifications.
 	 * ``event`` - ``\Elgg\Notifications\NotificationEvent`` instance that describes the notification event
 	 * ``origin`` - ``subscriptions_service`` or ``instant_notifications``
 	 * ``methods_override`` - delivery method preference for instant notifications
+	 * ``handler`` - ``\Elgg\Notifications\NotificationEventHandler`` instance that is handling this notification
 
 	Handlers must return an array in the form:
 
@@ -675,6 +664,7 @@ Note that not all events apply to instant notifications.
 
 	 * ``event`` - ``\Elgg\Notifications\NotificationEvent`` instance that describes the notification event
 	 * ``subscriptions`` - a list of subscriptions. See ``'get', 'subscriptions'`` event for details
+	 * ``handler`` - ``\Elgg\Notifications\NotificationEventHandler`` instance that is handling this notification
 
 **prepare, notification** |results|
 	A high level event that can be used to alter an instance of ``\Elgg\Notifications\Notification`` before it is sent to the user.
@@ -692,6 +682,7 @@ Note that not all events apply to instant notifications.
 	 * ``recipient`` - recipient
 	 * ``language`` - language of the notification (recipient's language)
 	 * ``origin`` - ``subscriptions_service`` or ``instant_notifications``
+	 * ``handler`` - ``\Elgg\Notifications\NotificationEventHandler`` instance that is handling this notification
 
 **prepare, notification:<action>:<entity_type>:<entity_type>** |results|
 	A granular event that can be used to filter a notification ``\Elgg\Notifications\Notification`` before it is sent to the user.
@@ -709,6 +700,7 @@ Note that not all events apply to instant notifications.
 	 * ``recipient`` - recipient
 	 * ``language`` - language of the notification (recipient's language)
 	 * ``origin`` - ``subscriptions_service`` or ``instant_notifications``
+	 * ``handler`` - ``\Elgg\Notifications\NotificationEventHandler`` instance that is handling this notification
 
 **format, notification:<method>** |results|
 	This event can be used to format a notification before it is passed to the ``'send', 'notification:<method>'`` event.
@@ -739,6 +731,7 @@ Note that not all events apply to instant notifications.
 	 * ``event`` - ``\Elgg\Notifications\NotificationEvent`` instance that describes the notification event
 	 * ``subscriptions`` - a list of subscriptions. See ``'get', 'subscriptions'`` event for details
 	 * ``deliveries`` - a matrix of delivery statuses by user for each delivery method
+	 * ``handler`` - ``\Elgg\Notifications\NotificationEventHandler`` instance that is handling this notification
 
 Emails
 ======
@@ -771,10 +764,10 @@ Emails
 
 	 * ``email`` - An instance of ``\Elgg\Email``
 
-**zend:message, system:email** |results|
-	Triggered by the default email transport handler (Elgg uses ``laminas/laminas-mail``).
+**message, system:email** |results|
+	Triggered by the default email transport handler (Elgg uses ``symfomy/mailer``).
 	Applies to all outgoing system and notification emails that were not transported using the **transport, system:email** event.
-	This event allows you to alter an instance of ``\Laminas\Mail\Message`` before it is passed to the Laminas email transport.
+	This event allows you to alter an instance of ``\Symfony\Component\Mime\Email`` before it is passed to the Symfony email transport.
 
 	``$params`` contains:
 
@@ -846,57 +839,46 @@ Action events
 **action_gatekeeper:permissions:check, all** |results|
 	Triggered after a CSRF token is validated. Return false to prevent validation.
 
-**forward, <reason>** |results|
-	Filter the URL to forward a user to when ``forward($url, $reason)`` is called.
-	In certain cases, the ``params`` array will contain an instance of ``\Elgg\Exceptions\HttpException`` that triggered the error.
-
-**response, action:<action>** |results|
-    Filter an instance of ``\Elgg\Http\ResponseBuilder`` before it is sent to the client.
-    This event can be used to modify response content, status code, forward URL, or set additional response headers.
-    Note that the ``<action>`` value is parsed from the request URL, therefore you may not be able to filter
-    the responses of `action()` calls if they are nested within the another action script file.
-
 .. _guides/events-list#ajax:
 
 Ajax
 ====
 
-**ajax_response, \*** |results|
-	When the ``elgg/Ajax`` AMD module is used, this event gives access to the response object
-	(``\Elgg\Services\AjaxResponse``) so it can be altered/extended. The event type depends on
-	the method call:
+**ajax_results, <event_type>\*** |results|
+	When the ``elgg/Ajax`` module is used, this event gives access to the results object
+	so it can be altered/extended. Handlers receive the request via ``$params['request']``.
+	
+	The event type depends on the method call:
 
 	================  ====================
 	elgg/Ajax method  event type
 	================  ====================
 	action()          action:<action_name>
-	path()            path:<url_path>
+	path()            <route_name>
 	view()            view:<view_name>
 	form()            form:<action_name>
 	================  ====================
 
-**ajax_response, action:<action_name>** |results|
-    Filters ``action/`` responses before they're sent back to the ``elgg/Ajax`` module.
-    
-**ajax_response, path:<path>** |results|
-    Filters ajax responses before they're sent back to the ``elgg/Ajax`` module. This event type will
-    only be used if the path did not start with "action/" or "ajax/".
-    
-**ajax_response, view:<view>** |results|
-    Filters ``ajax/view/`` responses before they're sent back to the ``elgg/Ajax`` module.
-
-**ajax_response, form:<action_name>** |results|
-    Filters ``ajax/form/`` responses before they're sent back to the ``elgg/Ajax`` module.
-
 Routing
 =======
 
-**response, path:<path>** |results|
+**response, <route_name>** |results|
     Filter an instance of ``\Elgg\Http\ResponseBuilder`` before it is sent to the client.
     This event type will only be used if the path did not start with "action/" or "ajax/".
     This event can be used to modify response content, status code, forward URL, or set additional response headers.
-    Note that the ``<path>`` value is parsed from the request URL, therefore plugins using the ``route`` event should
-    use the original ``<path>`` to filter the response, or switch to using the ``route:rewrite`` event.
+    Handlers receive the request via ``$params['request']``.
+
+**response, form:<form_name>** |results|
+    Filter an instance of ``\Elgg\Http\ResponseBuilder`` before it is sent to the client.
+    Applies to request to ``/ajax/form/<form_name>``.
+    This event can be used to modify response content, status code, forward URL, or set additional response headers.
+    Handlers receive the request via ``$params['request']``.
+    
+**response, view:<view_name>** |results|
+    Filter an instance of ``\Elgg\Http\ResponseBuilder`` before it is sent to the client.
+    Applies to request to ``/ajax/view/<view_name>``.
+    This event can be used to modify response content, status code, forward URL, or set additional response headers.
+    Handlers receive the request via ``$params['request']``.
 
 **route:config, <route_name>** |results|
 	Allows altering the route configuration before it is registered.
@@ -906,6 +888,18 @@ Routing
 **route:rewrite, <identifier>** |results|
 	Allows altering the site-relative URL path for an incoming request. See :doc:`routing` for details.
 	Please note that the handler for this event should be registered outside of the ``init`` event handler, as route rewrites take place after ``plugins_boot`` event has completed.
+
+**route:match, system** |results|
+	When no route is registered for a given URL path this event is triggered to allow developers to provide a routing 
+	configuration for the given path. This will allow more generic URLs to be handled without the need to register every
+	individual route.
+
+	``$params`` array includes:
+
+     * ``pathinfo`` - string with the URL path to be matched
+
+	The expected result is an array with a route definition. See :doc:`routing` for details. Also the result must contain
+	a key ``route`` with the name of the route.
 
 .. _guides/events-list#views:
 
@@ -966,16 +960,6 @@ Views
      * ``identifier`` - ID of the page being rendered
      * ``segments`` - URL segments of the page being rendered
      * other ``$vars`` received by ``elgg_view_layout()``
-
-**response, form:<form_name>** |results|
-    Filter an instance of ``\Elgg\Http\ResponseBuilder`` before it is sent to the client.
-    Applies to request to ``/ajax/form/<form_name>``.
-    This event can be used to modify response content, status code, forward URL, or set additional response headers.
-    
-**response, view:<view_name>** |results|
-    Filter an instance of ``\Elgg\Http\ResponseBuilder`` before it is sent to the client.
-    Applies to request to ``/ajax/view/<view_name>``.
-    This event can be used to modify response content, status code, forward URL, or set additional response headers.
     
 **shell, page** |results|
     In ``elgg_view_page()``, filters the page shell name
@@ -990,7 +974,7 @@ Views
     wish to specify the column directly.
     
 **vars:compiler, css** |results|
-    Allows plugins to alter CSS variables passed to CssCrush during compilation.
+    Allows plugins to alter CSS variables.
     See `CSS variables <_guides/theming#css-vars>`.
     
 **view, <view_name>** |results|
@@ -1078,9 +1062,6 @@ Other
 **classes, icon** |results|
 	Can be used to filter CSS classes applied to icon glyphs. By default, Elgg uses FontAwesome. Plugins can use this
 	event to switch to a different font family and remap icon classes.
-
-**config, amd** |results|
-	Filter the AMD config for the requirejs library.
 	
 **entity:icon:sizes, <entity_type>** |results|
 	Triggered by ``elgg_get_icon_sizes()`` and sets entity type/subtype specific icon sizes.
@@ -1145,14 +1126,15 @@ Other
 	 *
 	 * @param \Elgg\Event $event 'entity:icon:url', 'user'
 	 *
-	 * @return string
+	 * @return string|null
 	 */
-	function gravatar_icon_handler(\Elgg\Event $event) {
+	function gravatar_icon_handler(\Elgg\Event $event): ?string {
 		$entity = $event->getEntityParam();
-		
+		$size = $event->getParam('size');
+
 		// Allow users to upload avatars
-		if ($entity->icontime) {
-			return $url;
+		if ($entity->hasIcon($size)) {
+			return null;
 		}
 
 		// Generate gravatar hash for user email
@@ -1169,7 +1151,7 @@ Other
 		}
 
 		// Produce URL used to retrieve icon
-		return "http://www.gravatar.com/avatar/$hash?s=$size";
+		return "https://www.gravatar.com/avatar/{$hash}?s={$size}";
 	}
 
 **entity:<icon_type>:url, <entity_type>** |results|
@@ -1219,6 +1201,11 @@ Other
 	The ``$params`` array contains:
 
 	 * ``entity`` - entity that owns the icons
+
+**entity:url, <entity_type>:<entity_subtype>** |results|
+	Return the URL for the entity ``$params['entity']``. Note: Generally it is better to override the
+	``getUrl()`` method of ElggEntity. This event should be used when it's not possible to subclass
+	(like if you want to extend a bundled plugin without overriding many views).
 
 **entity:url, <entity_type>** |results|
 	Return the URL for the entity ``$params['entity']``. Note: Generally it is better to override the
@@ -1310,6 +1297,12 @@ Other
 
 Plugins
 =======
+
+Site Pages
+----------
+
+**names, externalpages** |results|
+	Returns a set of allowed names for external pages
 
 Groups
 ------

@@ -4,6 +4,7 @@ namespace Elgg\Plugins;
 
 use Elgg\PluginsIntegrationTestCase;
 use Elgg\ViewsService;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ViewStackIntegrationTest extends PluginsIntegrationTestCase {
 	
@@ -15,6 +16,8 @@ class ViewStackIntegrationTest extends PluginsIntegrationTestCase {
 	public function up() {
 		parent::up();
 		
+		_elgg_services()->reset('views');
+		
 		$this->views = _elgg_services()->views;
 	}
 	
@@ -23,7 +26,7 @@ class ViewStackIntegrationTest extends PluginsIntegrationTestCase {
 	 *
 	 * @return array
 	 */
-	public function viewsProvider(): array {
+	public static function viewsProvider(): array {
 		self::createApplication([
 			'isolate' => true,
 		]);
@@ -38,7 +41,10 @@ class ViewStackIntegrationTest extends PluginsIntegrationTestCase {
 			
 			_elgg_services()->reset('views');
 			
-			$this->startPlugin($plugin->getID(), false);
+			// can not use ->startPlugin() as it needs to be static
+			$plugin->register();
+			$plugin->boot();
+			$plugin->init();
 			
 			$data = _elgg_services()->views->getInspectorData();
 			foreach ($data['locations'] as $viewtype => $views) {
@@ -49,19 +55,25 @@ class ViewStackIntegrationTest extends PluginsIntegrationTestCase {
 						$viewtype,
 						$path,
 						elgg_extract($view, $data['simplecache'], false),
-						$plugin->getID(),
 					];
 				}
 			}
 		}
 		
+		if (empty($result)) {
+			// hack so test can check if there are no views provided
+			$result[] = [null, null, null, null, null];
+		}
+		
 		return $result;
 	}
-	
-	/**
-	 * @dataProvider viewsProvider
-	 */
-	public function testViewStackRegistrations(\ElggPlugin $plugin, $view, $viewtype, $path, $is_simplecache_view) {
+
+	#[DataProvider('viewsProvider')]
+	public function testViewStackRegistrations(?\ElggPlugin $plugin, $view, $viewtype, $path, $is_simplecache_view) {
+		if (!isset($plugin)) {
+			$this->markTestSkipped('no plugin views to test');
+		}
+		
 		$this->startPlugin($plugin->getID(), false);
 		
 		$this->assertFileExists($path);
@@ -87,6 +99,6 @@ class ViewStackIntegrationTest extends PluginsIntegrationTestCase {
 		$this->assertNotEmpty($view_list);
 		$this->assertEquals(count($view_list) > 1, !empty(elgg_get_view_extensions($view)));
 		
-		$this->assertEquals($is_simplecache_view, $this->views->isCacheableView($view));
+		$this->assertEquals($is_simplecache_view, _elgg_services()->simpleCache->isCacheableView($view));
 	}
 }

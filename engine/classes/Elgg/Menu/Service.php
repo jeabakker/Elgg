@@ -11,16 +11,6 @@ use Elgg\EventsService;
 class Service {
 
 	/**
-	 * @var EventsService
-	 */
-	protected $events;
-
-	/**
-	 * @var Config
-	 */
-	protected $config;
-
-	/**
 	 * @var \ElggMenuItem[]
 	 */
 	protected $menus = [];
@@ -31,9 +21,7 @@ class Service {
 	 * @param EventsService $events Events
 	 * @param Config        $config Elgg config
 	 */
-	public function __construct(EventsService $events, Config $config) {
-		$this->events = $events;
-		$this->config = $config;
+	public function __construct(protected EventsService $events, protected Config $config) {
 	}
 
 	/**
@@ -229,6 +217,7 @@ class Service {
 				'icon' => 'ellipsis-v',
 				'href' => false,
 				'text' => '',
+				'title' => elgg_echo('more'),
 				'child_menu' => [
 					'display' => 'dropdown',
 					'data-position' => json_encode([
@@ -363,23 +352,20 @@ class Service {
 	 * @param string $menu_name The name of the menu
 	 * @param string $item_name The unique identifier for this menu item
 	 *
-	 * @return \ElggMenuItem|null
+	 * @return void
 	 * @since 5.0
 	 */
-	public function unregisterMenuItem(string $menu_name, string $item_name): ?\ElggMenuItem {
+	public function unregisterMenuItem(string $menu_name, string $item_name): void {
 		if (!isset($this->menus[$menu_name])) {
-			return null;
+			return;
 		}
 		
 		foreach ($this->menus[$menu_name] as $index => $menu_item) {
 			if ($menu_item->getName() === $item_name) {
-				$item = $this->menus[$menu_name][$index];
 				unset($this->menus[$menu_name][$index]);
-				return $item;
+				return;
 			}
 		}
-		
-		return null;
 	}
 	
 	/**

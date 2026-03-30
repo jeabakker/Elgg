@@ -4,6 +4,7 @@ namespace Elgg\Actions;
 
 use Elgg\ActionResponseTestCase;
 use Elgg\Http\ResponseBuilder;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 abstract class RegistrationIntegrationTestCase extends ActionResponseTestCase {
 	
@@ -30,11 +31,9 @@ abstract class RegistrationIntegrationTestCase extends ActionResponseTestCase {
 		_elgg_services()->reset('routeCollection');
 	}
 	
-	abstract public function actionsProvider(): array;
+	abstract public static function actionsProvider(): array;
 	
-	/**
-	 * @dataProvider actionsProvider
-	 */
+	#[DataProvider('actionsProvider')]
 	public function testCanRequestActionWithoutParameters($name, $access) {
 		if (in_array($name, $this->skips)) {
 			$this->markTestSkipped("Can not test action '{$name}'");
@@ -48,10 +47,8 @@ abstract class RegistrationIntegrationTestCase extends ActionResponseTestCase {
 		
 		$this->assertInstanceOf(ResponseBuilder::class, $response);
 	}
-	
-	/**
-	 * @dataProvider actionsProvider
-	 */
+
+	#[DataProvider('actionsProvider')]
 	public function testCanRequestActionWithoutParametersViaAjax($name, $access) {
 		if (in_array($name, $this->skips)) {
 			$this->markTestSkipped("Can not test action '{$name}'");

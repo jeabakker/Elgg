@@ -3,7 +3,7 @@
 namespace Elgg\Bookmarks\Forms;
 
 /**
- * Prepare the fields for the bookmarks/save form
+ * Prepare the fields for the bookmarks/edit form
  *
  * @since 5.0
  */
@@ -12,7 +12,7 @@ class PrepareFields {
 	/**
 	 * Prepare fields
 	 *
-	 * @param \Elgg\Event $event 'form:prepare:fields', 'bookmarks/save'
+	 * @param \Elgg\Event $event 'form:prepare:fields', 'bookmarks/edit'
 	 *
 	 * @return array
 	 */
@@ -21,21 +21,28 @@ class PrepareFields {
 		
 		// input names => defaults
 		$values = [
-			'title' => (string) get_input('title'), // bookmarklet support
-			'address' => (string) get_input('address'),
-			'description' => '',
-			'access_id' => ACCESS_DEFAULT,
-			'tags' => '',
 			'container_guid' => elgg_get_page_owner_guid(),
-			'guid' => null,
 		];
+		
+		$fields = elgg()->fields->get('object', 'bookmarks');
+		foreach ($fields as $field) {
+			$default_value = null;
+			
+			$name = (string) elgg_extract('name', $field);
+			if (in_array($name, ['title', 'address'])) {
+				// bookmarklet support
+				$default_value = get_input($name);
+			}
+			
+			$values[$name] = $default_value;
+		}
 		
 		$bookmark = elgg_extract('entity', $vars);
 		if ($bookmark instanceof \ElggBookmark) {
 			// load current bookmark values
 			foreach (array_keys($values) as $field) {
-				if (isset($bookmark->$field)) {
-					$values[$field] = $bookmark->$field;
+				if (isset($bookmark->{$field})) {
+					$values[$field] = $bookmark->{$field};
 				}
 			}
 		}

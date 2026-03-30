@@ -3,6 +3,7 @@
 namespace Elgg\Discussions;
 
 use Elgg\Database\Seeds\Seed;
+use Elgg\Exceptions\Seeding\MaxAttemptsException;
 
 /**
  * Add database seed
@@ -11,7 +12,7 @@ use Elgg\Database\Seeds\Seed;
  */
 class Seeder extends Seed {
 
-	private $status = [
+	protected array $status = [
 		'open',
 		'closed',
 	];
@@ -23,15 +24,19 @@ class Seeder extends Seed {
 		$this->advance($this->getCount());
 
 		while ($this->getCount() < $this->limit) {
-			$properties = [
-				'subtype' => 'discussion',
-				'container_guid' => $this->getRandomGroup()->guid,
-				'status' => $this->getRandomStatus(),
-				'excerpt' => $this->faker()->sentence(),
-			];
-
-			/* @var $discussion \ElggDiscussion */
-			$discussion = $this->createObject($properties);
+			try {
+				/* @var $discussion \ElggDiscussion */
+				$discussion = $this->createObject([
+					'subtype' => 'discussion',
+					'container_guid' => $this->getRandomGroup()->guid,
+					'excerpt' => $this->faker()->sentence(),
+				]);
+			} catch (MaxAttemptsException $e) {
+				// unable to create a discussion with the given options
+				continue;
+			}
+			
+			$discussion->setStatus($this->getRandomStatus());
 			
 			$this->createComments($discussion);
 			$this->createLikes($discussion);
@@ -52,7 +57,6 @@ class Seeder extends Seed {
 	 * {@inheritdoc}
 	 */
 	public function unseed() {
-
 		/* @var $discussions \ElggBatch */
 		$discussions = elgg_get_entities([
 			'type' => 'object',
@@ -69,6 +73,8 @@ class Seeder extends Seed {
 				$this->log("Deleted discussion {$discussion->guid}");
 			} else {
 				$this->log("Failed to delete discussion {$discussion->guid}");
+				$discussions->reportFailure();
+				continue;
 			}
 
 			$this->advance();
@@ -76,7 +82,7 @@ class Seeder extends Seed {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * {@inheritdoc}
 	 */
 	public static function getType() : string {
 		return 'discussion';
@@ -84,16 +90,17 @@ class Seeder extends Seed {
 
 	/**
 	 * Returns random discussion status
+	 *
 	 * @return string
 	 */
-	public function getRandomStatus() {
-		$key = array_rand($this->status, 1);
+	public function getRandomStatus(): string {
+		$key = array_rand($this->status);
 
 		return $this->status[$key];
 	}
 	
 	/**
-	 * {@inheritDoc}
+	 * {@inheritdoc}
 	 */
 	protected function getCountOptions() : array {
 		return [

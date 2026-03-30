@@ -4,6 +4,7 @@ namespace Elgg;
 
 use DI\Container;
 use Elgg\Application\Database;
+use Elgg\Database\EntityTable;
 use Elgg\Database\Select;
 use Elgg\Helpers\Application\FooController;
 use Elgg\Helpers\Application\FooExceptionController;
@@ -55,19 +56,19 @@ class ApplicationUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	function testCanCallService() {
-		$qb = Select::fromTable('entities', 'e');
+		$qb = Select::fromTable(EntityTable::TABLE_NAME, EntityTable::DEFAULT_JOIN_ALIAS);
 		$qb->select('1');
 
 		_elgg_services()->db->addQuerySpec([
 			'sql' => $qb->getSQL(),
-			'results' => [1],
+			'results' => [[1]],
 		]);
 
 		$result = elgg()->call(function (Database $db) use ($qb) {
 			return $db->getDataRow($qb);
 		});
 
-		$this->assertEquals((object) 1, $result);
+		$this->assertEquals((object) [1], $result);
 	}
 
 	function testStartsTimer() {
@@ -155,7 +156,8 @@ class ApplicationUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	function testCanSendResponseUnbooted() {
-
+		$backup = Application::getInstance();
+		
 		Application::setInstance(null);
 
 		$builder = new OkResponse('hello');
@@ -166,7 +168,8 @@ class ApplicationUnitTest extends \Elgg\UnitTestCase {
 
 		$this->assertInstanceOf(Response::class, $response);
 		$this->assertEquals($output, $response->getContent());
-
+		
+		Application::setInstance($backup);
 	}
 
 	function testCanSendResponse() {

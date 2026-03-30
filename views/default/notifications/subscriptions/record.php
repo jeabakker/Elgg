@@ -20,7 +20,7 @@ if (empty($methods)) {
 	return;
 }
 
-elgg_require_js('notifications/subscriptions/record');
+elgg_import_esm('notifications/subscriptions/record');
 elgg_require_css('notifications/subscriptions/record');
 
 $icon = elgg_view_entity_icon($entity, 'tiny');
@@ -96,4 +96,4 @@ $container .= elgg_view('output/url', [
 echo elgg_format_element('div', ['class' => 'elgg-subscription-container'], $container);
 
 // placeholder for the details
-echo elgg_format_element('div', ['class' => 'elgg-subscription-container-details']);
+echo elgg_format_element('div', ['class' => ['elgg-subscription-container-details', 'hidden']]);

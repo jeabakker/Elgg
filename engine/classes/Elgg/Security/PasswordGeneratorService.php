@@ -20,21 +20,6 @@ use Hackzilla\PasswordGenerator\Generator\RequirementPasswordGenerator;
  * @internal
  */
 class PasswordGeneratorService {
-
-	/**
-	 * @var Config
-	 */
-	protected $config;
-	
-	/**
-	 * @var Translator
-	 */
-	protected $translator;
-	
-	/**
-	 * @var EventsService
-	 */
-	protected $events;
 	
 	/**
 	 * Constructor
@@ -43,10 +28,11 @@ class PasswordGeneratorService {
 	 * @param Translator    $translator Translator
 	 * @param EventsService $events     Events service
 	 */
-	public function __construct(Config $config, Translator $translator, EventsService $events) {
-		$this->config = $config;
-		$this->translator = $translator;
-		$this->events = $events;
+	public function __construct(
+		protected Config $config,
+		protected Translator $translator,
+		protected EventsService $events
+	) {
 	}
 	
 	/**
@@ -56,7 +42,7 @@ class PasswordGeneratorService {
 	 *
 	 * @return string
 	 */
-	public function generatePassword(int $length = 12): string {
+	public function generatePassword(int $length = 16): string {
 		
 		$length = $this->getValidLength($length);
 		

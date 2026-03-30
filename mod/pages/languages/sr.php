@@ -6,13 +6,12 @@
  */
 
 return array(
-
 	/**
 	 * Menu items and titles
 	 */
-
 	'item:object:page' => 'Стране',
 	'collection:object:page' => 'Странe',
+	
 	'collection:object:page:all' => "Све стране сајта",
 	'collection:object:page:owner' => "%s странe",
 	'collection:object:page:friends' => "Стране пријатеља",
@@ -31,7 +30,6 @@ return array(
 	'pages:notify:subject' => "Нова страна: %s",
 
 	'pages:more' => 'Више страна',
-	'pages:none' => 'Још увек нема креираних страна',
 
 	/**
 	* River

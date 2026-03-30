@@ -4,6 +4,12 @@ namespace Elgg\Integration;
 
 class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegrationTestCase {
 
+	public function down() {
+		_elgg_services()->relationshipsTable->resetCurrentTime();
+		
+		parent::down();
+	}
+	
 	// Make sure metadata doesn't affect getting entities by relationship.  See #2274
 	public function testElggApiGettersEntityRelationshipWithMetadata() {
 		$obj1 = $this->createObject();
@@ -184,6 +190,7 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$object2 = $this->createObject();
 		
 		// get a timestamp before creating the relationship
+		_elgg_services()->relationshipsTable->setCurrentTime();
 		$dt = _elgg_services()->relationshipsTable->getCurrentTime();
 		$ts_lower = $dt->getTimestamp() - 1;
 		
@@ -196,7 +203,7 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$es = elgg_get_entities([
 			'relationship' => 'testGetEntitiesFromRelationship',
 			'relationship_guid' => $object1->guid,
-			'relationship_created_time_lower' => $ts_lower,
+			'relationship_created_after' => $ts_lower,
 		]);
 		$this->assertIsArray($es);
 		$this->assertCount(1, $es);
@@ -209,7 +216,7 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$es = elgg_get_entities([
 			'relationship' => 'testGetEntitiesFromRelationship',
 			'relationship_guid' => $object1->guid,
-			'relationship_created_time_lower' => $ts_upper,
+			'relationship_created_after' => $ts_upper,
 		]);
 		$this->assertIsArray($es);
 		$this->assertCount(0, $es);
@@ -224,6 +231,7 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$object2 = $this->createObject();
 		
 		// get a timestamp before creating the relationship
+		_elgg_services()->relationshipsTable->setCurrentTime();
 		$dt = _elgg_services()->relationshipsTable->getCurrentTime();
 		$ts_lower = $dt->getTimestamp() - 1;
 		
@@ -236,7 +244,7 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$es = elgg_get_entities([
 			'relationship' => 'testGetEntitiesFromRelationship',
 			'relationship_guid' => $object1->guid,
-			'relationship_created_time_upper' => $ts_upper,
+			'relationship_created_before' => $ts_upper,
 		]);
 		$this->assertIsArray($es);
 		$this->assertCount(1, $es);
@@ -249,7 +257,7 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$es = elgg_get_entities([
 			'relationship' => 'testGetEntitiesFromRelationship',
 			'relationship_guid' => $object1->guid,
-			'relationship_created_time_upper' => $ts_lower,
+			'relationship_created_before' => $ts_lower,
 		]);
 		$this->assertIsArray($es);
 		$this->assertCount(0, $es);
@@ -264,6 +272,7 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$object2 = $this->createObject();
 		
 		// get a timestamp before creating the relationship
+		_elgg_services()->relationshipsTable->setCurrentTime();
 		$dt = _elgg_services()->relationshipsTable->getCurrentTime();
 		$ts_lower = $dt->getTimestamp() - 1;
 		
@@ -276,8 +285,8 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$es = elgg_get_entities([
 			'relationship' => 'testGetEntitiesFromRelationship',
 			'relationship_guid' => $object1->guid,
-			'relationship_created_time_lower' => $ts_lower,
-			'relationship_created_time_upper' => $ts_upper,
+			'relationship_created_after' => $ts_lower,
+			'relationship_created_before' => $ts_upper,
 		]);
 		$this->assertIsArray($es);
 		$this->assertCount(1, $es);
@@ -290,8 +299,8 @@ class ElggCoreGetEntitiesFromRelationshipTest extends ElggCoreGetEntitiesIntegra
 		$es = elgg_get_entities([
 			'relationship' => 'testGetEntitiesFromRelationship',
 			'relationship_guid' => $object1->guid,
-			'relationship_created_time_lower' => $ts_upper,
-			'relationship_created_time_upper' => $ts_lower,
+			'relationship_created_after' => $ts_upper,
+			'relationship_created_before' => $ts_lower,
 		]);
 		$this->assertIsArray($es);
 		$this->assertCount(0, $es);

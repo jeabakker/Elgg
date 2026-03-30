@@ -2,12 +2,16 @@
 	z-index
 *************************************** */
 
+.elgg-page-maintenance-background,
 .elgg-page-walled-garden-background {
 	z-index: 10;
 }
 
-.elgg-page-walled-garden > .elgg-inner {
-	z-index: 20;
+.elgg-page-walled-garden,
+.elgg-page-maintenance {
+	> .elgg-inner {
+		z-index: 20;
+	}
 }
 
 .elgg-comments .elgg-list:before,
@@ -32,7 +36,7 @@
 	z-index: 60;
 }
 
-@media only $(media-desktop-up) {
+@media screen and (min-width: 80rem) {
 	.elgg-page-topbar .elgg-menu li .elgg-child-menu {
 		z-index: 70;
 	}
@@ -53,6 +57,7 @@
 	z-index: 100;
 }
 
+.elgg-skiplink,
 .elgg-system-messages {
 	z-index: 1000;
 }

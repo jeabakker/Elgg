@@ -5,10 +5,6 @@ namespace Elgg\WebServices;
 use Elgg\Http\Request;
 use Elgg\Plugins\IntegrationTestCase;
 use Elgg\WebServices\Di\ApiRegistrationService;
-use Elgg\WebServices\Middleware\ApiContextMiddleware;
-use Elgg\WebServices\Middleware\ViewtypeMiddleware;
-use Elgg\WebServices\Middleware\RestApiOutputMiddleware;
-use Elgg\WebServices\Middleware\RestApiErrorHandlingMiddleware;
 use Symfony\Component\HttpFoundation\Response;
 
 class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
@@ -22,36 +18,22 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 	 * @var array backup of plugin settings
 	 */
 	protected $plugin_settings;
-	
+
 	/**
-	 * @var bool
-	 */
-	protected $gc_enabled;
-	
-	/**
-	 * {@inheritDoc}
+	 * {@inheritdoc}
 	 */
 	public function up() {
-		// there is some wierd issue in the Memcache tests with the HMACTable destruct function.
-		// disabling the circular reference collector solves this
-		$this->gc_enabled = gc_enabled();
-		gc_disable();
-		
 		$this->plugin = elgg_get_plugin_from_id('web_services');
 		$this->plugin_settings = $this->plugin->getAllSettings();
 	}
 	
 	/**
-	 * {@inheritDoc}
+	 * {@inheritdoc}
 	 */
 	public function down() {
 		// restore plugin settings
 		foreach ($this->plugin_settings as $name => $value) {
 			$this->plugin->setSetting($name, $value);
-		}
-		
-		if ($this->gc_enabled) {
-			gc_enable();
 		}
 	}
 	
@@ -70,25 +52,16 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 		
 		// keep this inline with the route declaration in elgg-plugin.php
 		$app->internal_services->routes->register('default:services:rest', [
-			'path' => '/services/api/rest/{view}/{segments?}',
+			'path' => '/services/api/rest/{view}',
 			'controller' => RestServiceController::class,
 			'defaults' => [
 				'view' => 'json',
-			],
-			'middleware' => [
-				ApiContextMiddleware::class,
-				ViewtypeMiddleware::class,
-				RestApiOutputMiddleware::class,
-				RestApiErrorHandlingMiddleware::class,
-			],
-			'requirements' => [
-				'segments' => '.+',
 			],
 			'walled' => false,
 		]);
 		
 		// in some cases there was a failure with missing view
-		$app->internal_services->views->registerPluginViews($this->plugin->getPath());
+		$app->internal_services->views->registerViewsFromPath($this->plugin->getPath());
 	}
 	
 	/**
@@ -110,6 +83,9 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 		} catch (\Throwable $t) {
 			// just catching
 		}
+		
+		// need to clean up the exception handler set in the API controller
+		restore_exception_handler();
 		
 		ob_get_clean();
 		
@@ -145,7 +121,7 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 			'require_api_auth' => true,
 		]));
 		
-		/* @var $result Response */
+		/** @var Response $result */
 		$result = $this->executeRequest($request);
 		$this->assertInstanceOf(Response::class, $result);
 		$this->assertEquals(ELGG_HTTP_OK, $result->getStatusCode());
@@ -187,8 +163,12 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 			},
 			'require_api_auth' => true,
 		]));
-		$this->expectException(\APIException::class);
-		$this->executeRequest($request);
+		
+		/** @var Response $result */
+		$result = $this->executeRequest($request);
+		
+		$this->assertInstanceOf(Response::class, $result);
+		$this->assertEquals(ELGG_HTTP_FORBIDDEN, $result->getStatusCode());
 	}
 	
 	public function testApiAuthenticationWithInvalidKey() {
@@ -213,8 +193,11 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 			'require_api_auth' => true,
 		]));
 		
-		$this->expectException(\APIException::class);
-		$this->executeRequest($request);
+		/** @var Response $result */
+		$result = $this->executeRequest($request);
+		
+		$this->assertInstanceOf(Response::class, $result);
+		$this->assertEquals(ELGG_HTTP_FORBIDDEN, $result->getStatusCode());
 	}
 	
 	public function testApiAuthenticationWithValidHMACHeaders() {
@@ -248,6 +231,7 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 		
 		$this->createService($request);
 		
+		$this->assertTrue($this->plugin->setSetting('auth_allow_key', 0));
 		$this->assertTrue($this->plugin->setSetting('auth_allow_hmac', 1));
 		
 		$called = 0;
@@ -261,7 +245,7 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 			'require_api_auth' => true,
 		]));
 			
-		/* @var $result Response */
+		/** @var Response $result */
 		$result = $this->executeRequest($request);
 		$this->assertInstanceOf(Response::class, $result);
 		$this->assertEquals(ELGG_HTTP_OK, $result->getStatusCode());
@@ -322,9 +306,12 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 			},
 			'require_api_auth' => true,
 		]));
-			
-		$this->expectException(\APIException::class);
-		$this->executeRequest($request);
+		
+		/** @var Response $result */
+		$result = $this->executeRequest($request);
+		
+		$this->assertInstanceOf(Response::class, $result);
+		$this->assertEquals(ELGG_HTTP_FORBIDDEN, $result->getStatusCode());
 	}
 	
 	public function testApiAuthenticationWithInvalidHMACHeaders() {
@@ -358,6 +345,7 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 		
 		$this->createService($request);
 		
+		$this->assertTrue($this->plugin->setSetting('auth_allow_key', 0));
 		$this->assertTrue($this->plugin->setSetting('auth_allow_hmac', 1));
 		
 		$called = 0;
@@ -371,17 +359,139 @@ class ApiAuthenticationIntegrationTest extends IntegrationTestCase {
 			'require_api_auth' => true,
 		]));
 		
-		$this->expectException(\APIException::class);
-		$this->executeRequest($request);
+		/** @var Response $result */
+		$result = $this->executeRequest($request);
+		
+		$this->assertInstanceOf(Response::class, $result);
+		$this->assertEquals(ELGG_HTTP_FORBIDDEN, $result->getStatusCode());
 	}
 	
 	public function testApiAuthenticationWithValidHMACHeadersPost() {
-		// need a way to simulate post data in the request since this is read from 'php://input'
-		$this->markTestIncomplete();
+		$key = _elgg_services()->apiUsersTable->createApiUser();
+		$this->assertNotFalse($key);
+		
+		$request = $this->prepareHttpRequest(elgg_generate_url('default:services:rest'), 'POST', [
+			'method' => 'api_auth_test',
+			'view' => 'json',
+		]);
+		
+		// add headers
+		$api_header = new \stdClass();
+		$api_header->algo = 'sha256';
+		$api_header->time = time();
+		$api_header->nounce = md5(rand());
+		
+		$api_header->posthash_algo = 'sha256';
+		$api_header->posthash = elgg_ws_calculate_posthash($request->getContent(), $api_header->posthash_algo);
+		$request->server->set('HTTP_X_ELGG_POSTHASH', $api_header->posthash);
+		$request->server->set('HTTP_X_ELGG_POSTHASH_ALGO', $api_header->posthash_algo);
+		
+		$hmac = elgg_ws_calculate_hmac(
+			$api_header->algo,
+			$api_header->time,
+			$api_header->nounce,
+			$key->api_key,
+			$key->secret,
+			$request->server->get('QUERY_STRING', ''),
+			$api_header->posthash
+		);
+		$request->server->set('HTTP_X_ELGG_APIKEY', $key->api_key);
+		$request->server->set('HTTP_X_ELGG_HMAC', $hmac);
+		$request->server->set('HTTP_X_ELGG_HMAC_ALGO', $api_header->algo);
+		$request->server->set('HTTP_X_ELGG_TIME', $api_header->time);
+		$request->server->set('HTTP_X_ELGG_NONCE', $api_header->nounce);
+		
+		$this->createService($request);
+		
+		$this->assertTrue($this->plugin->setSetting('auth_allow_key', 0));
+		$this->assertTrue($this->plugin->setSetting('auth_allow_hmac', 1));
+		
+		$called = 0;
+		ApiRegistrationService::instance()->registerApiMethod(ApiMethod::factory([
+			'method' => 'api_auth_test',
+			'call_method' => 'POST',
+			'callback' => function() use (&$called) {
+				$called++;
+				
+				return \SuccessResult::getInstance(['called' => $called]);
+			},
+			'require_api_auth' => true,
+		]));
+		
+		/** @var Response $result */
+		$result = $this->executeRequest($request);
+		$this->assertInstanceOf(Response::class, $result);
+		$this->assertEquals(ELGG_HTTP_OK, $result->getStatusCode());
+		
+		$content = $result->getContent();
+		$this->assertIsString($content);
+		
+		$content = json_decode($content, true);
+		$this->assertIsArray($content);
+		$this->assertArrayHasKey('status', $content);
+		$this->assertEquals(\SuccessResult::RESULT_SUCCESS, $content['status']);
+		
+		$this->assertArrayHasKey('result', $content);
+		$this->assertArrayHasKey('called', $content['result']);
+		$this->assertEquals($called, $content['result']['called']);
 	}
 	
 	public function testApiAuthenticationWithInvalidHMACHeadersPost() {
-		// need a way to simulate post data in the request since this is read from 'php://input'
-		$this->markTestIncomplete();
+		$key = _elgg_services()->apiUsersTable->createApiUser();
+		$this->assertNotFalse($key);
+		
+		$request = $this->prepareHttpRequest(elgg_generate_url('default:services:rest'), 'POST', [
+			'method' => 'api_auth_test',
+			'view' => 'json',
+		]);
+		
+		// add headers
+		$api_header = new \stdClass();
+		$api_header->algo = 'sha256';
+		$api_header->time = time();
+		$api_header->nounce = md5(rand());
+		
+		$api_header->posthash_algo = 'sha256';
+		$api_header->posthash = elgg_ws_calculate_posthash($request->getContent(), $api_header->posthash_algo);
+		$request->server->set('HTTP_X_ELGG_POSTHASH', $api_header->posthash);
+		$request->server->set('HTTP_X_ELGG_POSTHASH_ALGO', $api_header->posthash_algo);
+		
+		$hmac = elgg_ws_calculate_hmac(
+			$api_header->algo,
+			$api_header->time,
+			$api_header->nounce,
+			$key->api_key,
+			$key->secret,
+			$request->server->get('QUERY_STRING', ''),
+			$api_header->posthash
+		);
+		$request->server->set('HTTP_X_ELGG_APIKEY', $key->api_key);
+		$request->server->set('HTTP_X_ELGG_HMAC', $hmac);
+		$request->server->set('HTTP_X_ELGG_HMAC_ALGO', $api_header->algo);
+		$request->server->set('HTTP_X_ELGG_TIME', $api_header->time + 1); // time header isn't valid
+		$request->server->set('HTTP_X_ELGG_NONCE', $api_header->nounce);
+		
+		$this->createService($request);
+		
+		$this->assertTrue($this->plugin->setSetting('auth_allow_key', 0));
+		$this->assertTrue($this->plugin->setSetting('auth_allow_hmac', 1));
+		
+		$called = 0;
+		ApiRegistrationService::instance()->registerApiMethod(ApiMethod::factory([
+			'method' => 'api_auth_test',
+			'call_method' => 'POST',
+			'callback' => function() use (&$called) {
+				$called++;
+				
+				return \SuccessResult::getInstance(['called' => $called]);
+			},
+			'require_api_auth' => true,
+		]));
+		
+		/** @var Response $result */
+		$result = $this->executeRequest($request);
+		
+		$this->assertInstanceOf(Response::class, $result);
+		$this->assertEquals(ELGG_HTTP_FORBIDDEN, $result->getStatusCode());
 	}
 }

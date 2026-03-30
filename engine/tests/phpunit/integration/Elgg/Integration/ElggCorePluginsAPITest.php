@@ -2,37 +2,89 @@
 
 namespace Elgg\Integration;
 
-use ElggPlugin;
+
+use Elgg\Exceptions\PluginException;
 
 class ElggCorePluginsAPITest extends \Elgg\IntegrationTestCase {
 
-	// \ElggPlugin
+	protected ?\ElggPlugin $plugin = null;
+	
+	protected bool $initial_active = false;
+		
+	public function up() {
+		parent::up();
+		
+		$plugin = \ElggPlugin::fromId('profile');
+		if (!$plugin instanceof \ElggPlugin) {
+			$this->markTestSkipped();
+		}
+		
+		$this->plugin = $plugin;
+		$this->initial_active = $plugin->isActive();
+		
+		if (!$this->initial_active) {
+			try {
+				$plugin->activate();
+			} catch (PluginException $e) {
+				$this->markTestSkipped();
+			}
+		}
+	}
+	
+	public function down() {
+		if (!$this->plugin instanceof \ElggPlugin) {
+			return;
+		}
+		
+		if ($this->initial_active && !$this->plugin->isActive()) {
+			try {
+				$this->plugin->activate();
+			} catch (PluginException $e) {
+				// nothing
+			}
+		} elseif (!$this->initial_active && $this->plugin->isActive()) {
+			try {
+				$this->plugin->deactivate();
+			} catch (PluginException $e) {
+				// nothing
+			}
+		}
+	}
+
+	public function testPluginActivateAltersIsActive() {
+		$this->plugin->deactivate();
+		$this->assertFalse($this->plugin->isActive());
+
+		$this->plugin->activate();
+		$this->assertTrue($this->plugin->isActive());
+
+		$this->plugin->deactivate();
+		$this->assertFalse($this->plugin->isActive());
+	}
+
 	public function testElggPluginIsValid() {
-		$test_plugin = ElggPlugin::fromId('profile');
-		$this->assertTrue($test_plugin->isValid());
+		$this->assertTrue($this->plugin->isValid());
 
 		// check if no exceptions are thrown
-		$test_plugin->assertValid();
+		$this->plugin->assertValid();
 	}
 
 	public function testElggPluginGetID() {
-		$test_plugin = ElggPlugin::fromId('profile');
-		$this->assertEquals('profile', $test_plugin->getID());
+		$this->assertEquals('profile', $this->plugin->getID());
 	}
 
 	public function testGetSettingRespectsDefaults() {
-		$plugin = elgg_get_plugin_from_id('profile');
-		if (!$plugin) {
-			$this->markTestSkipped();
-		}
-
 		$cache = _elgg_services()->metadataCache;
-		$cache->inject($plugin->guid, [
-			__METHOD__ => 'foo',
+		$cache->save($this->plugin->guid, [
+			new \ElggMetadata((object) [
+				'name' => __METHOD__,
+				'value' => 'foo',
+				'entity_guid' => $this->plugin->guid,
+			]),
 		]);
 
-		$this->assertEquals('foo', $plugin->getSetting(__METHOD__, 'bar'));
-		$plugin->unsetSetting(__METHOD__);
-		$this->assertEquals('bar', $plugin->getSetting(__METHOD__, 'bar'));
+		$this->assertEquals('foo', $this->plugin->getSetting(__METHOD__, 'bar'));
+		$this->plugin->unsetSetting(__METHOD__);
+		$this->assertEquals('bar', $this->plugin->getSetting(__METHOD__, 'bar'));
 	}
 }

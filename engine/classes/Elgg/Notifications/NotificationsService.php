@@ -4,8 +4,8 @@ namespace Elgg\Notifications;
 
 use Elgg\EventsService;
 use Elgg\Exceptions\InvalidArgumentException;
-use Elgg\Traits\Loggable;
 use Elgg\Queue\Queue;
+use Elgg\Traits\Loggable;
 
 /**
  * Notifications service
@@ -17,20 +17,11 @@ class NotificationsService {
 
 	use Loggable;
 	
-	/** @var Queue */
-	protected $queue;
-
-	/** @var EventsService */
-	protected $elgg_events;
-
-	/** @var \ElggSession */
-	protected $session;
-	
 	/** @var array Registered notification events */
-	protected $events = [];
+	protected array $events = [];
 
 	/** @var array Registered notification methods */
-	protected $methods = [];
+	protected array $methods = [];
 
 	/**
 	 * Constructor
@@ -40,14 +31,10 @@ class NotificationsService {
 	 * @param EventsService $elgg_events Events service
 	 */
 	public function __construct(
-			Queue $queue,
-			\ElggSession $session,
-			EventsService $elgg_events
+			protected Queue $queue,
+			protected \ElggSession $session,
+			protected EventsService $elgg_events
 	) {
-
-		$this->queue = $queue;
-		$this->session = $session;
-		$this->elgg_events = $elgg_events;
 	}
 
 	/**
@@ -55,17 +42,15 @@ class NotificationsService {
 	 *
 	 * @param string $type    'object', 'user', 'group', 'site'
 	 * @param string $subtype The subtype or name of the entity
-	 * @param array  $actions Array of actions or empty array for the action event.
-	 *                        An event is usually described by the first string passed
-	 *                        to elgg_trigger_event(). Examples include
-	 *                        'create', 'update', and 'publish'. The default is 'create'.
+	 * @param string $action  An event is usually described by the first string passed to elgg_trigger_event().
+	 *                        Examples include 'create', 'update', and 'publish' (default: 'create').
 	 * @param string $handler NotificationEventHandler classname
 	 *
 	 * @return void
 	 * @throws InvalidArgumentException
 	 * @see elgg_register_notification_event()
 	 */
-	public function registerEvent(string $type, string $subtype, array $actions = [], string $handler = NotificationEventHandler::class) {
+	public function registerEvent(string $type, string $subtype, string $action = 'create', string $handler = NotificationEventHandler::class): void {
 		if (!is_a($handler, NotificationEventHandler::class, true)) {
 			throw new InvalidArgumentException('$handler needs to be a ' . NotificationEventHandler::class . ' classname');
 		}
@@ -78,13 +63,15 @@ class NotificationsService {
 			$this->events[$type][$subtype] = [];
 		}
 		
-		if (empty($actions) && !array_key_exists('create', $this->events[$type][$subtype])) {
-			$actions[] = 'create';
+		if (!isset($this->events[$type][$subtype][$action])) {
+			$this->events[$type][$subtype][$action] = [];
 		}
 		
-		foreach ($actions as $action) {
-			$this->events[$type][$subtype][$action] = $handler;
+		if (in_array($handler, $this->events[$type][$subtype][$action])) {
+			return;
 		}
+		
+		$this->events[$type][$subtype][$action][] = $handler;
 	}
 
 	/**
@@ -92,18 +79,23 @@ class NotificationsService {
 	 *
 	 * @param string $type    'object', 'user', 'group', 'site'
 	 * @param string $subtype The subtype of the entity
-	 * @param array  $actions The notification action to unregister, leave empty for all actions
+	 * @param string $action  The notification action to unregister (default: 'create')
+	 * @param string $handler NotificationEventHandler class to unregister
 	 *
 	 * @return void
 	 * @see elgg_unregister_notification_event()
 	 */
-	public function unregisterEvent(string $type, string $subtype, array $actions = []): void {
-
-		if (empty($actions)) {
-			unset($this->events[$type][$subtype]);
+	public function unregisterEvent(string $type, string $subtype, string $action = 'create', string $handler = NotificationEventHandler::class): void {
+		if (!isset($this->events[$type][$subtype][$action])) {
+			return;
 		}
 		
-		foreach ($actions as $action) {
+		$key = array_search($handler, $this->events[$type][$subtype][$action]);
+		if ($key !== false) {
+			unset($this->events[$type][$subtype][$action][$key]);
+		}
+		
+		if (empty($this->events[$type][$subtype][$action])) {
 			unset($this->events[$type][$subtype][$action]);
 		}
 		
@@ -114,20 +106,6 @@ class NotificationsService {
 		if (empty($this->events[$type])) {
 			unset($this->events[$type]);
 		}
-	}
-	
-	/**
-	 * Check if a notification event is registered
-	 *
-	 * @param string $type    'object', 'user', 'group', 'site'
-	 * @param string $subtype The subtype of the entity
-	 * @param string $action  The notification action to check
-	 *
-	 * @return bool
-	 * @since 5.0
-	 */
-	public function isRegisteredEvent(string $type, string $subtype, string $action): bool {
-		return isset($this->events[$type][$subtype][$action]);
 	}
 
 	/**
@@ -191,13 +169,13 @@ class NotificationsService {
 	/**
 	 * Add a notification event to the queue
 	 *
-	 * @param string      $action Action name
-	 * @param \ElggData   $object The object of the action
-	 * @param \ElggEntity $actor  (optional) The actor of the notification (default: logged in user or owner of $object)
+	 * @param string           $action Action name
+	 * @param \ElggData        $object The object of the action
+	 * @param null|\ElggEntity $actor  (optional) The actor of the notification (default: logged-in user or owner of $object)
 	 *
 	 * @return void
 	 */
-	public function enqueueEvent(string $action, \ElggData $object, \ElggEntity $actor = null): void {
+	public function enqueueEvent(string $action, \ElggData $object, ?\ElggEntity $actor = null): void {
 		$object_type = $object->getType();
 		$object_subtype = $object->getSubtype();
 		$actor = $actor ?? elgg_get_logged_in_user_entity(); // default to logged in user
@@ -206,16 +184,17 @@ class NotificationsService {
 			$actor = $object->getOwnerEntity() ?: null;
 		}
 		
-		$registered = $this->isRegisteredEvent($object_type, $object_subtype, $action);
-		if ($registered) {
-			$params = [
-				'action' => $action,
-				'object' => $object,
-				'actor' => $actor,
-			];
-			$registered = (bool) $this->elgg_events->triggerResults('enqueue', 'notification', $params, $registered);
+		$handlers = $this->getSubscriptionHandlers($object_type, $object_subtype, $action);
+		if (empty($handlers)) {
+			return;
 		}
 		
+		$params = [
+			'action' => $action,
+			'object' => $object,
+			'actor' => $actor,
+		];
+		$registered = (bool) $this->elgg_events->triggerResults('enqueue', 'notification', $params, true);
 		if (!$registered) {
 			return;
 		}
@@ -225,66 +204,114 @@ class NotificationsService {
 	}
 	
 	/**
-	 * Returns notification event handler based on event
+	 * Get the subscription notification handlers
 	 *
-	 * @param NotificationEvent $event event to get event handler for
+	 * @param string $type    'object', 'user', 'group', 'site'
+	 * @param string $subtype The subtype of the entity
+	 * @param string $action  The notification action
 	 *
-	 * @return NotificationEventHandler
+	 * @return array
 	 */
-	protected function getNotificationHandler(NotificationEvent $event): NotificationEventHandler {
-		$object = $event->getObject();
-		$handler = NotificationEventHandler::class;
-		
-		if (isset($this->events[$object->getType()][$object->getSubtype()][$event->getAction()])) {
-			$handler = $this->events[$object->getType()][$object->getSubtype()][$event->getAction()];
+	protected function getSubscriptionHandlers(string $type, string $subtype, string $action): array {
+		if (!isset($this->events[$type][$subtype][$action])) {
+			return [];
 		}
 		
-		return new $handler($event, $this);
+		$result = [];
+		foreach ($this->events[$type][$subtype][$action] as $handler) {
+			if (is_a($handler, InstantNotificationEventHandler::class, true)) {
+				continue;
+			}
+			
+			$result[] = $handler;
+		}
+		
+		return $result;
+	}
+	
+	/**
+	 * Get the instant notification handlers
+	 *
+	 * @param string $type    'object', 'user', 'group', 'site'
+	 * @param string $subtype The subtype of the entity
+	 * @param string $action  The notification action
+	 *
+	 * @return array
+	 */
+	protected function getInstantHandlers(string $type, string $subtype, string $action): array {
+		if (!isset($this->events[$type][$subtype][$action])) {
+			return [
+				InstantNotificationEventHandler::class,
+			];
+		}
+		
+		$result = [];
+		foreach ($this->events[$type][$subtype][$action] as $handler) {
+			if (!is_a($handler, InstantNotificationEventHandler::class, true)) {
+				continue;
+			}
+			
+			$result[] = $handler;
+		}
+		
+		if (empty($result)) {
+			return [
+				InstantNotificationEventHandler::class,
+			];
+		}
+		
+		return $result;
 	}
 
 	/**
 	 * Pull notification events from queue until stop time is reached
 	 *
-	 * @param int  $stopTime The Unix time to stop sending notifications
-	 * @param bool $matrix   If true, will return delivery matrix instead of a notifications event count
+	 * @param int $stopTime The Unix time to stop sending notifications
 	 *
-	 * @return int|array The number of notification events handled, or a delivery matrix
+	 * @return int The number of notification events handled
 	 */
-	public function processQueue($stopTime, $matrix = false) {
-		
-		return elgg_call(ELGG_IGNORE_ACCESS, function() use ($stopTime, $matrix) {
-			$delivery_matrix = [];
-			
+	public function processQueue(int $stopTime): int {
+		return elgg_call(ELGG_IGNORE_ACCESS, function() use ($stopTime) {
 			$count = 0;
 			
 			while (time() < $stopTime) {
 				// dequeue notification event
-				$event = $this->queue->dequeue();
-				/* @var $event NotificationEvent */
+				$event = elgg_call(ELGG_SHOW_DISABLED_ENTITIES, function () {
+					// showing disabled entities for deserialization
+					return $this->queue->dequeue();
+				});
 				
-				if (!$event) {
+				if (!$event instanceof NotificationEvent) {
 					// queue is empty
 					break;
 				}
 				
-				if (!$event instanceof NotificationEvent || !$event->getObject() || !$event->getActor()) {
+				$object = $event->getObject();
+				if (!$object instanceof \ElggData || !$event->getActor()) {
 					// event object or actor have been deleted since the event was enqueued
 					continue;
 				}
 				
-				$this->elgg_events->trigger('dequeue', 'notifications', $event->getObject());
+				$this->elgg_events->trigger('dequeue', 'notifications', $object);
 				
-				$handler = $this->getNotificationHandler($event);
+				$handlers = $this->getSubscriptionHandlers($object->getType(), $object->getSubtype(), $event->getAction());
+				if (empty($handlers)) {
+					continue;
+				}
 				
-				try {
-					$delivery_matrix[$event->getDescription()] = $handler->send();
-					$count++;
-				} catch (\Throwable $t) {
-					$this->getLogger()->error($t);
+				foreach ($handlers as $handler_class) {
+					$handler = new $handler_class($event, $this);
+					
+					try {
+						$handler->send();
+						$count++;
+					} catch (\Throwable $t) {
+						$this->getLogger()->error($t);
+					}
 				}
 			}
 			
-			return $matrix ? $delivery_matrix : $count;
+			return $count;
 		});
 	}
 
@@ -324,14 +351,10 @@ class NotificationsService {
 	 *
 	 * @return array
 	 */
-	public function sendInstantNotifications(\ElggEntity $sender, array $recipients = [], array $params = []) {
+	public function sendInstantNotifications(\ElggEntity $sender, array $recipients = [], array $params = []): array {
 		if (empty($this->methods)) {
 			return [];
 		}
-		
-		$params['recipients'] = array_filter($recipients, function($e) {
-			return ($e instanceof \ElggUser);
-		});
 		
 		$object = elgg_extract('object', $params);
 		$action = elgg_extract('action', $params);
@@ -339,7 +362,53 @@ class NotificationsService {
 		$event = new InstantNotificationEvent($object, $action, $sender);
 		
 		$handler = new InstantNotificationEventHandler($event, $this, $params);
+		$handler->setRecipients($recipients);
 		
 		return $handler->send();
+	}
+	
+	/**
+	 * Send an instant notification to a user
+	 *
+	 * @param \ElggUser        $recipient The recipient user
+	 * @param string           $action    The action on $subject
+	 * @param \ElggData        $subject   The notification subject
+	 * @param array            $params    Additional params
+	 *                                    use $params['methods_override'] to override the recipient notification methods (eg 'email' or 'site')
+	 * @param null|\ElggEntity $from      Sender of the message
+	 *
+	 * @return array
+	 * @since 6.3
+	 */
+	public function sendInstantNotification(\ElggUser $recipient, string $action, \ElggData $subject, array $params = [], ?\ElggEntity $from = null): array {
+		if (empty($this->methods)) {
+			return [];
+		}
+		
+		$handlers = $this->getInstantHandlers($subject->getType(), $subject->getSubtype(), $action);
+		if (empty($handlers)) {
+			return [];
+		}
+		
+		$from = $from ?? elgg_get_site_entity();
+		
+		$event = new InstantNotificationEvent($subject, $action, $from);
+		
+		$result = [];
+		
+		foreach ($handlers as $handler_class) {
+			$handler = new $handler_class($event, $this, $params);
+			$handler->setRecipients([$recipient]);
+			
+			try {
+				$handler_result = $handler->send();
+				
+				$result = $result + $handler_result;
+			} catch (\Throwable $t) {
+				$this->getLogger()->error($t);
+			}
+		}
+		
+		return $result;
 	}
 }

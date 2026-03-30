@@ -6,13 +6,11 @@
  */
 
 return array(
-
+	
 	/**
 	 * Menu items and titles
 	 */
-
 	'messageboard:board' => "Πίνακας μηνυμάτων",
-	'messageboard:none' => "Δεν υπάρχουν μηνύματα ακόμα",
 	'messageboard:num_display' => "Αριθμός μηνυμάτων για εμφάνιση",
 	'messageboard:owner' => 'πίνακας μηνυμάτων του χρήστη %s',
 	'messageboard:owner_history' => 'οι αναρτήσεις του χρήστη %s στον πίνακα μηνυμάτων του χρήστη %s',

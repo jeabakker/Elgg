@@ -1,37 +1,15 @@
 <?php
 
+namespace Elgg\Security;
+
 class CryptoUnitTest extends \Elgg\UnitTestCase {
 
-	/**
-	 * @var PHPUnit_Framework_MockObject_MockObject
-	 */
-	protected $stub;
-
-	public function up() {
-		$this->stub = $this->getMockBuilder('\Elgg\Security\Crypto')
-			->setMethods(array('getRandomBytes'))
-			->getMock();
-
-		$this->stub->expects($this->any())
-			->method('getRandomBytes')
-			->will($this->returnCallback(array($this, 'mock_getRandomBytes')));
-	}
-
 	protected function getCrypto() {
-		return new \Elgg\Security\Crypto();
+		return new Crypto();
 	}
 
 	protected function getHmac() {
-		return new \Elgg\Security\HmacFactory(_elgg_services()->siteSecret, $this->getCrypto());
-	}
-
-	function mock_getRandomBytes($length) {
-		mt_srand(1);
-		$bytes = '';
-		for ($i = 0; $i < $length; $i++) {
-			$bytes .= chr(mt_rand(0, 254));
-		}
-		return $bytes;
+		return new HmacFactory(_elgg_services()->siteSecret, $this->getCrypto());
 	}
 
 	function testGeneratesMacInBase64Url() {

@@ -7,12 +7,12 @@
 
 return array(
 	'item:object:reported_content' => 'Rapporterede poster',
+	
 	'admin:administer_utilities:reportedcontent' => 'Rapporteret indhold',
 	
 	'reportedcontent' => 'Rapporteret indhold',
 	'reportedcontent:this' => 'Rapporter dette',
 	'reportedcontent:this:tooltip' => 'Rapporter denne side til en administrator',
-	'reportedcontent:none' => 'Der er ikke noget rapporteret indhold',
 	'reportedcontent:report' => 'Rapporter til administrationen',
 	'reportedcontent:archive' => 'Arkiver den',
 	'reportedcontent:archived' => 'Rapporten er blevet arkiveret',

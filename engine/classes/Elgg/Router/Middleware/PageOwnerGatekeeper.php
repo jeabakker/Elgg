@@ -22,7 +22,7 @@ class PageOwnerGatekeeper {
 	 * @return void
 	 * @throws EntityNotFoundException
 	 */
-	public function __invoke(\Elgg\Request $request) {
+	public function __invoke(\Elgg\Request $request): void {
 		
 		$route = $request->getHttpRequest()->getRoute();
 		if (!$route instanceof Route) {
@@ -38,6 +38,7 @@ class PageOwnerGatekeeper {
 		}
 		
 		$this->page_owner = $page_owner;
+		_elgg_services()->pageOwner->setPageOwnerGuid($page_owner->guid);
 		
 		$this->assert($request, $route);
 	}

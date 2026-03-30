@@ -2,7 +2,6 @@
 
 namespace Elgg\WebServices\Di;
 
-use Elgg\Collections\CollectionInterface;
 use Elgg\EventsService;
 use Elgg\Exceptions\ExceptionInterface;
 use Elgg\Exceptions\InvalidArgumentException;
@@ -102,7 +101,7 @@ class ApiRegistrationService {
 	 *
 	 * @return string
 	 */
-	public static function name() {
+	public static function name(): string {
 		return 'webservices.api_registration';
 	}
 	
@@ -158,7 +157,7 @@ class ApiRegistrationService {
 				try {
 					$this->collection->add(ApiMethod::factory($options));
 				} catch (ExceptionInterface $e) {
-					elgg_log($e, 'ERROR');
+					elgg_log($e, \Psr\Log\LogLevel::ERROR);
 				}
 			}
 		}

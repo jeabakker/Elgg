@@ -6,13 +6,11 @@
  */
 
 return array(
-
+	
 	/**
 	 * Menu items and titles
 	 */
-
 	'messageboard:board' => "Safata de comentaris",
-	'messageboard:none' => "No hi ha cap comentari a la teva safata",
 	'messageboard:num_display' => "Nombre de comentaris a mostrar",
 	'messageboard:owner' => 'Safata personal de %s',
 	'messageboard:owner_history' => 'Comentaris de %s a la safata personal de %s',

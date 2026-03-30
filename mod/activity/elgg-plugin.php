@@ -26,11 +26,11 @@ return [
 		'collection:river:group' => [
 			'path' => '/activity/group/{guid}',
 			'resource' => 'activity/group',
+			'options' => [
+				'group_tool' => 'activity',
+			],
 			'required_plugins' => [
 				'groups',
-			],
-			'middleware' => [
-				\Elgg\Router\Middleware\GroupPageOwnerGatekeeper::class,
 			],
 		],
 		'collection:river:all' => [
@@ -56,14 +56,15 @@ return [
 		'activity' => [],
 	],
 	'view_extensions' => [
-		'css/elgg' => [
+		'elgg.css' => [
 			'river/filter.css' => [],
 		],
 	],
 	'events' => [
 		'entity:url' => [
-			'object' => [
-				'Elgg\Activity\Widgets::widgetURL' => [],
+			'object:widget' => [
+				'Elgg\Activity\Widgets::groupWidgetURL' => [],
+				'Elgg\Activity\Widgets::riverWidgetURL' => [],
 			],
 		],
 		'register' => [

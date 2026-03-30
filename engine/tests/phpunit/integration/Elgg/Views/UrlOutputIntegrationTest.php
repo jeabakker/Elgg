@@ -2,9 +2,11 @@
 
 namespace Elgg\Views;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+
 class UrlOutputIntegrationTest extends ViewRenderingIntegrationTestCase {
 
-	public function getViewNames() {
+	public static function getViewNames() {
 		return ['output/url'];
 	}
 
@@ -30,10 +32,8 @@ class UrlOutputIntegrationTest extends ViewRenderingIntegrationTestCase {
 			'href' => $href,
 		]);
 	}
-	
-	/**
-	 * @dataProvider anchorTextProvider
-	 */
+
+	#[DataProvider('anchorTextProvider')]
 	public function testCanRenderAnchorWithText($text_input, $text_output) {
 		$href = 'http://example.com';
 
@@ -49,8 +49,7 @@ class UrlOutputIntegrationTest extends ViewRenderingIntegrationTestCase {
 		]);
 	}
 	
-	public function anchorTextProvider() {
-		
+	public static function anchorTextProvider() {
 		return [
 			[
 				'text_input' => 'sample text',

@@ -10,6 +10,7 @@ return array(
 	'profile:notfound' => 'Sorry. We could not find the requested profile.',
 	
 	'admin:configure_utilities:profile_fields' => 'Edit Profile Fields',
+	'menu:profile_admin:header' => 'Profile administration',
 	
 	'profile:edit' => 'Edit profile',
 	'profile:edit:header' => 'Edit profile header',
@@ -22,7 +23,6 @@ return array(
 	'profile:phone' => "Telephone",
 	'profile:mobile' => "Mobile phone",
 	'profile:website' => "Website",
-	'profile:twitter' => "Twitter username",
 	'profile:saved' => "Your profile was successfully saved.",
 
 	'profile:field:text' => 'Short text',

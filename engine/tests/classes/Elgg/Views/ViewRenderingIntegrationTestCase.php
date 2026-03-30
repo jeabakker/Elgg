@@ -4,6 +4,7 @@ namespace Elgg\Views;
 
 use Elgg\Exceptions\HttpException;
 use Elgg\Plugins\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Abstract class for testing view output
@@ -19,7 +20,7 @@ abstract class ViewRenderingIntegrationTestCase extends IntegrationTestCase {
 	 *
 	 * @return array
 	 */
-	abstract public function getViewNames();
+	abstract public static function getViewNames();
 
 	/**
 	 * Returns default view vars to testing rendering
@@ -32,7 +33,7 @@ abstract class ViewRenderingIntegrationTestCase extends IntegrationTestCase {
 	 *
 	 * @return array
 	 */
-	public function viewListProvider() {
+	public static function viewListProvider() {
 		self::createApplication();
 
 		$provides = [];
@@ -41,7 +42,7 @@ abstract class ViewRenderingIntegrationTestCase extends IntegrationTestCase {
 
 		foreach ($data['locations'] as $viewtype => $views) {
 			foreach ($views as $view => $path) {
-				if (in_array($view, $this->getViewNames())) {
+				if (in_array($view, static::getViewNames())) {
 					$provides[] = [$view, $viewtype];
 				}
 			}
@@ -65,9 +66,7 @@ abstract class ViewRenderingIntegrationTestCase extends IntegrationTestCase {
 		$this->assertXmlStringEqualsXmlString($expected, $actual, $message);
 	}
 
-	/**
-	 * @dataProvider viewListProvider
-	 */
+	#[DataProvider('viewListProvider')]
 	public function testCanRenderViewWithEmptyVars($view, $viewtype) {
 		try {
 			$output = $this->view($view, [], $viewtype);
@@ -77,9 +76,7 @@ abstract class ViewRenderingIntegrationTestCase extends IntegrationTestCase {
 		}
 	}
 
-	/**
-	 * @dataProvider viewListProvider
-	 */
+	#[DataProvider('viewListProvider')]
 	public function testCanRenderViewWithVars($view, $viewtype) {
 		try {
 			$output = $this->view($view, $this->getDefaultViewVars(), $viewtype);

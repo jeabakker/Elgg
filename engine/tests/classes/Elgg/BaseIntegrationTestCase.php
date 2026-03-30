@@ -3,11 +3,10 @@
 namespace Elgg;
 
 use Elgg\Database\DbConfig;
-use ElggSession;
+use Elgg\Mocks\Mailer\Transport\InMemoryTransport;
 use Psr\Log\LogLevel;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\OutputInterface;
-use Laminas\Mail\Transport\InMemory;
 
 /**
  * Integration test abstraction
@@ -24,7 +23,6 @@ abstract class BaseIntegrationTestCase extends BaseTestCase {
 	 * {@inheritdoc}
 	 */
 	public static function createApplication(array $params = []) {
-
 		$isolate = elgg_extract('isolate', $params, false);
 		unset($params['isolate']);
 
@@ -37,8 +35,8 @@ abstract class BaseIntegrationTestCase extends BaseTestCase {
 			Application::setInstance($app);
 
 			// Invalidate caches
-			$app->internal_services->dataCache->clear();
-			$app->internal_services->sessionCache->clear();
+			$app->internal_services->metadataCache->clear();
+			$app->internal_services->accessCache->clear();
 
 			return $app;
 		}
@@ -52,7 +50,7 @@ abstract class BaseIntegrationTestCase extends BaseTestCase {
 
 		$config->system_cache_enabled = true;
 		$config->boot_cache_ttl = 600;
-		$config->plugins_path = elgg_extract('plugins_path', $params);
+		$config->plugins_path = elgg_extract('plugins_path', $params, $config->plugins_path);
 		$config->getCookieConfig();
 
 		$app = Application::factory(array_merge([
@@ -65,12 +63,10 @@ abstract class BaseIntegrationTestCase extends BaseTestCase {
 		$app->setGlobalConfig($app);
 		
 		$app->internal_services->set('session', function () {
-			return ElggSession::getMock();
+			return \ElggSession::getMock();
 		});
 
-		$app->internal_services->set('mailer', function () {
-			return new InMemory();
-		});
+		$app->internal_services->set('mailer_transport', new InMemoryTransport());
 
 		try {
 			$app->internal_services->db->getConnection(DbConfig::WRITE);
@@ -93,8 +89,8 @@ abstract class BaseIntegrationTestCase extends BaseTestCase {
 		}
 
 		// Invalidate caches
-		$app->internal_services->dataCache->clear();
-		$app->internal_services->sessionCache->clear();
+		$app->internal_services->metadataCache->clear();
+		$app->internal_services->accessCache->clear();
 
 		// prevent loading of 'active' plugins from database if loading application with a custom plugins path
 		if (isset($params['plugins_path'])) {
@@ -116,6 +112,7 @@ abstract class BaseIntegrationTestCase extends BaseTestCase {
 		$app->internal_services->config->allowed_languages = null;
 		
 		// set correct base classes for testing purposes
+		$app->internal_services->boot->clearCache();
 		$app->internal_services->entityTable->setEntityClass('object', 'plugin', \Elgg\Mocks\ElggPlugin::class);
 
 		// register object/commentable as a subtype that is always commentable

@@ -2,6 +2,9 @@
 
 use Elgg\Groups\Forms\PrepareFields;
 use Elgg\Groups\Middleware\LimitedGroupCreation;
+use Elgg\Groups\Notifications\AddMembershipEventHandler;
+use Elgg\Groups\Notifications\InviteMembershipEventHandler;
+use Elgg\Groups\Notifications\RequestMembershipEventHandler;
 
 require_once(__DIR__ . '/lib/functions.php');
 
@@ -21,9 +24,10 @@ return [
 			'type' => 'group',
 			'subtype' => 'group',
 			'capabilities' => [
-				'commentable' => false,
+				'river_emittable' => true,
 				'searchable' => true,
 				'likable' => true,
+				'restorable' => true,
 			],
 		],
 	],
@@ -83,6 +87,7 @@ return [
 			'path' => '/groups/invitations/{username}',
 			'resource' => 'groups/invitations',
 			'middleware' => [
+				\Elgg\Router\Middleware\Gatekeeper::class,
 				\Elgg\Router\Middleware\UserPageOwnerCanEditGatekeeper::class,
 			],
 		],
@@ -145,8 +150,10 @@ return [
 			'path' => '/settings/notifications/groups/{username}',
 			'resource' => 'settings/notifications/groups',
 			'middleware' => [
+				\Elgg\Router\Middleware\Gatekeeper::class,
 				\Elgg\Router\Middleware\UserPageOwnerCanEditGatekeeper::class,
 			],
+			'use_logged_in' => true,
 		],
 	],
 	'widgets' => [
@@ -181,7 +188,7 @@ return [
 		'create:after' => [
 			'group' => [
 				'Elgg\Groups\Group::createAccessCollection' => [],
-				\Elgg\Notifications\CreateContentEventHandler::class => [],
+				\Elgg\Notifications\Events\CreateContent::class => [],
 			],
 		],
 		'default' => [
@@ -193,6 +200,11 @@ return [
 		'delete' => [
 			'relationship' => [
 				'Elgg\Groups\Relationships::removeGroupNotificationSubscriptions' => [],
+			],
+		],
+		'entity:url' => [
+			'object:widget' => [
+				'Elgg\Groups\Widgets::usersGroupsWidgetURL' => [],
 			],
 		],
 		'fields' => [
@@ -227,6 +239,7 @@ return [
 			],
 			'menu:filter:groups/all' => [
 				'Elgg\Groups\Menus\Filter::registerGroupsAll' => [],
+				'Elgg\Groups\Menus\FilterSortItems::registerPopularSorting' => [],
 				'Elgg\Menus\FilterSortItems::registerTimeCreatedSorting' => [],
 				'Elgg\Menus\FilterSortItems::registerNameSorting' => [],
 				'Elgg\Menus\FilterSortItems::registerSortingDropdown' => ['priority' => 9999],
@@ -267,6 +280,25 @@ return [
 		'update:after' => [
 			'group' => [
 				'Elgg\Groups\Group::updateGroup' => [],
+			],
+		],
+	],
+	'notifications' => [
+		'relationship' => [
+			'invited' => [
+				'create:after' => [
+					InviteMembershipEventHandler::class => [],
+				],
+			],
+			'member' => [
+				'add_membership' => [
+					AddMembershipEventHandler::class => [],
+				],
+			],
+			'membership_request' => [
+				'create:after' => [
+					RequestMembershipEventHandler::class => [],
+				],
 			],
 		],
 	],

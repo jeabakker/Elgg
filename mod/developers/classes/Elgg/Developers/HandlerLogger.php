@@ -2,11 +2,12 @@
 
 namespace Elgg\Developers;
 
+use Psr\Log\LogLevel;
+
 /**
  * Track events
  *
  * @since 4.0
- * @internal
  */
 class HandlerLogger {
 	
@@ -97,7 +98,7 @@ class HandlerLogger {
 			$type,
 			$function,
 		]);
-		elgg_dump($msg);
+		elgg_log($msg, LogLevel::ERROR);
 		
 		unset($stack);
 	}

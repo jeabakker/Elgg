@@ -32,7 +32,8 @@ class MimeTypeDetector {
 		'html' => 'text/html',
 		'php' => 'text/html',
 		'css' => 'text/css',
-		'js' => 'application/javascript',
+		'js' => 'text/javascript',
+		'mjs' => 'text/javascript',
 		'json' => 'application/json',
 		'xml' => 'application/xml',
 		'swf' => 'application/x-shockwave-flash',
@@ -178,6 +179,11 @@ class MimeTypeDetector {
 		if ($type === 'application/vnd.ms-office' && $extension === 'ppt') {
 			return 'application/vnd.ms-powerpoint';
 		}
+
+		// bad css/js detection
+		if ($type === 'text/plain' && in_array($extension, ['css', 'js', 'mjs'])) {
+			return $this->extensions[$extension];
+		}
 		
 		// try extension detection as a fallback for octet-stream
 		if ($type === 'application/octet-stream' && $this->use_extension && isset($this->extensions[$extension])) {
@@ -201,7 +207,7 @@ class MimeTypeDetector {
 
 		$finfo = finfo_open(FILEINFO_MIME);
 		$type = finfo_file($finfo, $file);
-		finfo_close($finfo);
+		
 		// Mimetype can come in text/plain; charset=us-ascii form
 		if (strpos($type, ';')) {
 			list($type,) = explode(';', $type);

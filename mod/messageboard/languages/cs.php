@@ -6,13 +6,11 @@
  */
 
 return array(
-
+	
 	/**
 	 * Menu items and titles
 	 */
-
 	'messageboard:board' => "Vzkazy",
-	'messageboard:none' => "Zatím zde nejsou žádné vzkazy",
 	'messageboard:num_display' => "Počet zobrazených vzkazů",
 	'messageboard:owner' => 'Vzkazník uživatele %s',
 	'messageboard:owner_history' => '%s přidal/a vzkaz do vzkazníku uživatele %s',

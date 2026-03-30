@@ -1,5 +1,6 @@
 <?php
 
+use Elgg\Pages\Controllers\ContentListing;
 use Elgg\Pages\Forms\PrepareFields;
 use Elgg\Pages\GroupToolContainerLogicCheck;
 use Elgg\Pages\Notifications\CreatePageEventHandler;
@@ -15,36 +16,54 @@ return [
 		[
 			'type' => 'object',
 			'subtype' => 'page',
-			'class' => '\ElggPage',
+			'class' => \ElggPage::class,
 			'capabilities' => [
 				'commentable' => true,
+				'river_emittable' => true,
 				'searchable' => true,
+				'subscribable' => true,
 				'likable' => true,
+				'restorable' => true,
 			],
 		],
 	],
 	'actions' => [
-		'pages/edit' => [],
+		'pages/edit' => [
+			'controller' => \Elgg\Pages\Controllers\EditAction::class,
+			'options' => [
+				'entity_type' => 'object',
+				'entity_subtype' => 'page',
+			],
+		],
 	],
 	'routes' => [
 		'default:object:page' => [
 			'path' => '/pages',
-			'resource' => 'pages/all',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'pages/sidebar',
+			],
 		],
 		'collection:object:page:all' => [
 			'path' => '/pages/all',
-			'resource' => 'pages/all',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'pages/sidebar',
+			],
 		],
 		'collection:object:page:owner' => [
 			'path' => '/pages/owner/{username}',
-			'resource' => 'pages/owner',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'pages/sidebar',
+			],
 			'middleware' => [
 				\Elgg\Router\Middleware\UserPageOwnerGatekeeper::class,
 			],
 		],
 		'collection:object:page:friends' => [
 			'path' => '/pages/friends/{username}',
-			'resource' => 'pages/friends',
+			'controller' => ContentListing::class,
 			'required_plugins' => [
 				'friends',
 			],
@@ -53,13 +72,14 @@ return [
 			],
 		],
 		'collection:object:page:group' => [
-			'path' => '/pages/group/{guid}/{subpage?}',
-			'resource' => 'pages/group',
+			'path' => '/pages/group/{guid}',
+			'controller' => ContentListing::class,
+			'options' => [
+				'group_tool' => 'pages',
+				'sidebar_view' => 'pages/sidebar',
+			],
 			'required_plugins' => [
 				'groups',
-			],
-			'middleware' => [
-				\Elgg\Router\Middleware\GroupPageOwnerGatekeeper::class,
 			],
 		],
 		'add:object:page' => [
@@ -117,14 +137,14 @@ return [
 				'Elgg\Pages\Icons::getIconUrl' => [],
 			],
 		],
+		'entity:url' => [
+			'object:widget' => [
+				'Elgg\Pages\Widgets::pagesWidgetURL' => [],
+			],
+		],
 		'extender:url' => [
 			'annotation' => [
 				'Elgg\Pages\Extender::setRevisionUrl' => [],
-			],
-		],
-		'fields' => [
-			'object:page' => [
-				\Elgg\Pages\FieldsHandler::class => [],
 			],
 		],
 		'form:prepare:fields' => [
@@ -151,9 +171,6 @@ return [
 			'menu:site' => [
 				'Elgg\Pages\Menus\Site::register' => [],
 			],
-			'menu:title:object:page' => [
-				\Elgg\Notifications\RegisterSubscriptionMenuItemsHandler::class => [],
-			],
 		],
 		'seeds' => [
 			'database' => [
@@ -177,8 +194,12 @@ return [
 	'notifications' => [
 		'object' => [
 			'page' => [
-				'create' => CreatePageEventHandler::class,
-				'mentions' => \Elgg\Notifications\MentionsEventHandler::class,
+				'create' =>	[
+					CreatePageEventHandler::class => [],
+				],
+				'mentions' => [
+					\Elgg\Notifications\Handlers\Mentions::class => [],
+				],
 			],
 		],
 	],

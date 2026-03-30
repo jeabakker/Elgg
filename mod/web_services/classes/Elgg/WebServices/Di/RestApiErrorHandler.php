@@ -6,6 +6,7 @@ use Elgg\Traits\Di\ServiceFacade;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\AbstractHandler;
 use Monolog\Handler\FormattableHandlerTrait;
+use Monolog\LogRecord;
 
 /**
  * Custom error logger during rest api calls. Stores errors in memory for later use in api result
@@ -25,7 +26,7 @@ class RestApiErrorHandler extends AbstractHandler {
 	/**
 	 * {@inheritDoc}
 	 */
-	public function handle(array $record): bool {
+	public function handle(LogRecord $record): bool {
 		$this->errors[] = $this->getFormatter()->format($record);
 		
 		return false;
@@ -52,7 +53,7 @@ class RestApiErrorHandler extends AbstractHandler {
 	 *
 	 * @return string
 	 */
-	public static function name() {
+	public static function name(): string {
 		return 'webservices.rest.error_handler';
 	}
 }

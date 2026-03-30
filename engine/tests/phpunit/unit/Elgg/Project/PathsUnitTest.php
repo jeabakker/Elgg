@@ -3,12 +3,11 @@
 namespace Elgg\Project;
 
 use Elgg\UnitTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class PathsUnitTest extends UnitTestCase {
-
-	/**
-	 * @dataProvider sanitizePathProvider
-	 */
+	
+	#[DataProvider('sanitizePathProvider')]
 	public function testSanitize($prefix) {
 		$path = Paths::sanitize(Paths::elgg() . $prefix . 'engine/tests/phpunit/unit/Elgg/Project/') . 'PathsUnitTest.php'; // this class file
 		$expected = Paths::sanitize(__FILE__, false);
@@ -16,7 +15,7 @@ class PathsUnitTest extends UnitTestCase {
 		$this->assertEquals($expected, $path);
 	}
 	
-	public function sanitizePathProvider() {
+	public static function sanitizePathProvider() {
 		return [
 			[''],
 			['/'],

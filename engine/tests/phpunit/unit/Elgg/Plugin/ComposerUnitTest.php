@@ -6,6 +6,7 @@ use Elgg\UnitTestCase;
 use Elgg\Exceptions\Plugin\ComposerException;
 use Eloquent\Composer\Configuration\Element\Configuration;
 use Elgg\Exceptions\Plugin\IdMismatchException;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ComposerUnitTest extends UnitTestCase {
 
@@ -54,8 +55,7 @@ class ComposerUnitTest extends UnitTestCase {
 	
 	public function testAssertPluginID() {
 		$composer = $this->getComposer();
-		
-		$this->assertEmpty($composer->assertPluginId());
+		$composer->assertPluginId();
 		
 		$plugin = $this->plugin;
 		$plugin->title = 'invalid_plugin_id';
@@ -95,15 +95,52 @@ class ComposerUnitTest extends UnitTestCase {
 			'elgg' => '<1.9',
 		], $composer->getConflicts());
 	}
+
+	#[DataProvider('validVersionProvider')]
+	public function testCheckConstraintsValid($version_input, $version_constraint) {
+		$composer = $this->getComposer();
+		
+		$this->assertTrue($composer->checkConstraints($version_input, $version_constraint));
+	}
+	
+	public static function validVersionProvider(): array {
+		return [
+			['1.0.0', '*'],
+			['1.2.0', '^1.0'],
+			['2.0.0', '>1.0'],
+		];
+	}
+
+	#[DataProvider('invalidVersionProvider')]
+	public function testCheckConstraintsInvalid($version_input, $version_constraint) {
+		$composer = $this->getComposer();
+		
+		_elgg_services()->logger->disable();
+		$this->assertFalse($composer->checkConstraints($version_input, $version_constraint));
+		_elgg_services()->logger->enable();
+	}
+	
+	public static function invalidVersionProvider(): array {
+		return [
+			['1.2.0', '1.0'],
+			['2.0.0', '<2.0'],
+			['2.0.0', '<2.0'],
+			// next is an invalid version string which should throw an exception which is caught
+			['1.2.3!invalid', '*'],
+			// next is a bug in Composer\Semver https://github.com/composer/semver/issues/157
+			// once fixed this test should be moved to the valid tests to prevent regression
+			['8.3.3-1+0~20240216.17+debian11~1.gbp87e37b', '*'],
+		];
+	}
 	
 	/**
 	 * Get the composer reader
 	 *
-	 * @param \ElggPlugin $plugin plugin to read
+	 * @param null|\ElggPlugin $plugin plugin to read
 	 *
 	 * @return \Elgg\Plugin\Composer
 	 */
-	protected function getComposer(\ElggPlugin $plugin = null) {
+	protected function getComposer(?\ElggPlugin $plugin = null) {
 		if (!$plugin instanceof \ElggPlugin) {
 			$plugin = $this->plugin;
 		}

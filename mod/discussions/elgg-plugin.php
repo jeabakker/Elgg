@@ -1,5 +1,6 @@
 <?php
 
+use Elgg\Discussions\Controllers\ContentListing;
 use Elgg\Discussions\Forms\PrepareFields;
 use Elgg\Discussions\GroupToolContainerLogicCheck;
 use Elgg\Discussions\Notifications\CreateDiscussionEventHandler;
@@ -13,11 +14,14 @@ return [
 		[
 			'type' => 'object',
 			'subtype' => 'discussion',
-			'class' => 'ElggDiscussion',
+			'class' => \ElggDiscussion::class,
 			'capabilities' => [
 				'commentable' => true,
+				'river_emittable' => true,
 				'searchable' => true,
+				'subscribable' => true,
 				'likable' => true,
+				'restorable' => true,
 			],
 		],
 	],
@@ -25,40 +29,47 @@ return [
 		'enable_global_discussions' => 0,
 	],
 	'actions' => [
-		'discussion/save' => [],
+		'discussion/edit' => [
+			'controller' => \Elgg\Discussions\Controllers\EditAction::class,
+			'options' => [
+				'entity_type' => 'object',
+				'entity_subtype' => 'discussion',
+			],
+		],
 		'discussion/toggle_status' => [],
 	],
 	'routes' => [
 		'default:object:discussion' => [
 			'path' => '/discussion',
-			'resource' => 'discussion/all',
+			'controller' => ContentListing::class,
 		],
 		'collection:object:discussion:all' => [
 			'path' => '/discussion/all',
-			'resource' => 'discussion/all',
+			'controller' => ContentListing::class,
 		],
 		'collection:object:discussion:owner' => [
 			'path' => '/discussion/owner/{username}',
-			'resource' => 'discussion/owner',
+			'controller' => ContentListing::class,
 			'middleware' => [
 				\Elgg\Router\Middleware\UserPageOwnerGatekeeper::class,
 			],
 		],
 		'collection:object:discussion:my_groups' => [
 			'path' => '/discussion/my_groups/{username}',
-			'resource' => 'discussion/my_groups',
+			'controller' => ContentListing::class,
 			'middleware' => [
+				\Elgg\Router\Middleware\Gatekeeper::class,
 				\Elgg\Router\Middleware\UserPageOwnerCanEditGatekeeper::class,
 			],
 		],
 		'collection:object:discussion:group' => [
 			'path' => '/discussion/group/{guid}',
-			'resource' => 'discussion/group',
+			'controller' => ContentListing::class,
+			'options' => [
+				'group_tool' => 'forum',
+			],
 			'required_plugins' => [
 				'groups',
-			],
-			'middleware' => [
-				\Elgg\Router\Middleware\GroupPageOwnerGatekeeper::class,
 			],
 		],
 		'add:object:discussion' => [
@@ -88,13 +99,18 @@ return [
 				GroupToolContainerLogicCheck::class => [],
 			],
 		],
+		'cron' => [
+			'daily' => [
+				'Elgg\Discussions\Cron::autoClose' => [],
+			],
+		],
 		'entity:url' => [
-			'object' => [
+			'object:widget' => [
 				'Elgg\Discussions\Widgets::widgetURL' => [],
 			],
 		],
 		'form:prepare:fields' => [
-			'discussion/save' => [
+			'discussion/edit' => [
 				PrepareFields::class => [],
 			],
 		],
@@ -126,9 +142,6 @@ return [
 			'menu:site' => [
 				'Elgg\Discussions\Menus\Site::register' => [],
 			],
-			'menu:title:object:discussion' => [
-				\Elgg\Notifications\RegisterSubscriptionMenuItemsHandler::class => [],
-			],
 		],
 		'seeds' => [
 			'database' => [
@@ -142,12 +155,19 @@ return [
 	'notifications' => [
 		'object' => [
 			'discussion' => [
-				'create' => CreateDiscussionEventHandler::class,
-				'mentions' => \Elgg\Notifications\MentionsEventHandler::class,
+				'create' => [
+					CreateDiscussionEventHandler::class => [],
+				],
+				'mentions' => [
+					\Elgg\Notifications\Handlers\Mentions::class => [],
+				],
 			],
 		],
 	],
 	'view_extensions' => [
+		'forms/discussion/edit' => [
+			'discussion/auto_close' => ['priority' => 400],
+		],
 		'groups/edit/settings' => [
 			'discussion/groups/settings' => [],
 		],

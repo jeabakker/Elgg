@@ -7,12 +7,12 @@
 
 return array(
 	'item:object:reported_content' => 'Elementos reportados',
+	
 	'admin:administer_utilities:reportedcontent' => 'Contenido reportado',
 	
 	'reportedcontent' => 'Contenido reportado',
 	'reportedcontent:this' => 'Reportar esto',
 	'reportedcontent:this:tooltip' => 'Reportar esta p&aacute;gina',
-	'reportedcontent:none' => 'No hay contenidos reportados',
 	'reportedcontent:report' => 'Reportar',
 	'reportedcontent:archive' => 'Reportes archivados',
 	'reportedcontent:archived' => 'El reporta ha sido archivado',

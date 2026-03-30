@@ -6,12 +6,12 @@
  */
 
 return array(
-
 	/**
 	 * Menu items and titles
 	 */
 	'item:object:bookmarks' => 'Zakładki',
 	'collection:object:bookmarks' => 'Zakładki',
+	
 	'collection:object:bookmarks:group' => 'Zakładki grupy',
 	'collection:object:bookmarks:all' => "Wszystkie zakładki na stronie",
 	'collection:object:bookmarks:owner' => "Zakładki użytkownika %s",
@@ -24,7 +24,6 @@ return array(
 	'bookmarks:bookmarklet' => "Pobierz skryptozakładkę",
 	'bookmarks:bookmarklet:group' => "Pobierz skryptozakładkę grupy",
 	'bookmarks:address' => "Adres zakładki",
-	'bookmarks:none' => 'Brak zakładek',
 
 	'bookmarks:notify:summary' => 'Nowa zakładka o nazwie %s',
 	'bookmarks:notify:subject' => 'Nowa zakładka: %s',

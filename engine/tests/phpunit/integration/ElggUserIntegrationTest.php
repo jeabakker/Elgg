@@ -1,6 +1,7 @@
 <?php
 
 use Elgg\IntegrationTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ElggUserIntegrationTest extends IntegrationTestCase {
 
@@ -8,10 +9,8 @@ class ElggUserIntegrationTest extends IntegrationTestCase {
 	 * @var \ElggUser User during tests
 	 */
 	protected $user;
-	
-	/**
-	 * @dataProvider correctAdminBannedValues
-	 */
+
+	#[DataProvider('correctAdminBannedValues')]
 	public function testSetCorrectBannedValue($value, $boolean_value) {
 		$user = $this->user = $this->createUser();
 		
@@ -26,10 +25,8 @@ class ElggUserIntegrationTest extends IntegrationTestCase {
 		$this->assertEquals($value, $user->banned);
 		$this->assertEquals($boolean_value, $user->isBanned());
 	}
-	
-	/**
-	 * @dataProvider correctAdminBannedValues
-	 */
+
+	#[DataProvider('correctAdminBannedValues')]
 	public function testSetCorrectAdminValue($value, $boolean_value) {
 		$user = $this->user = $this->createUser();
 		
@@ -43,7 +40,7 @@ class ElggUserIntegrationTest extends IntegrationTestCase {
 		$this->assertEquals($boolean_value, $user->isAdmin());
 	}
 	
-	public function correctAdminBannedValues() {
+	public static function correctAdminBannedValues() {
 		return [
 			['no', false],
 			['yes', true],

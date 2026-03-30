@@ -7,12 +7,12 @@
 
 return array(
 	'item:object:reported_content' => 'Nahlášené položky',
+	
 	'admin:administer_utilities:reportedcontent' => 'Nahlášený obsah',
 	
 	'reportedcontent' => 'Nahlášený obsah',
 	'reportedcontent:this' => 'Nahlásit',
 	'reportedcontent:this:tooltip' => 'Nahlásit tuto stránky správci',
-	'reportedcontent:none' => 'Není žádný nahlášený obsah',
 	'reportedcontent:report' => 'Nahlásit správci',
 	'reportedcontent:archive' => 'Archivovat hlášení',
 	'reportedcontent:archived' => 'Hlášení bylo archivováno',

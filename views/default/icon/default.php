@@ -43,7 +43,7 @@ if (!isset($vars['height'])) {
 
 $img_params = [
 	'src' => $entity->getIconURL($size),
-	'alt' => $title,
+	'alt' => $entity->hasIcon($size) ? $title : '',
 ];
 
 if (!empty($img_class)) {
@@ -67,6 +67,7 @@ if ($url) {
 	$params = [
 		'href' => $url,
 		'text' => $img,
+		'title' => $entity->getDisplayName(),
 		'is_trusted' => true,
 	];
 	$link_class = elgg_extract_class($vars, [], 'link_class');

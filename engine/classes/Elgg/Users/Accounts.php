@@ -4,7 +4,6 @@ namespace Elgg\Users;
 
 use Elgg\Config;
 use Elgg\Email;
-use Elgg\Email\Address;
 use Elgg\EmailService;
 use Elgg\EventsService;
 use Elgg\Exceptions\Configuration\RegistrationException;
@@ -13,41 +12,12 @@ use Elgg\I18n\Translator;
 use Elgg\PasswordService;
 use Elgg\Security\PasswordGeneratorService;
 use Elgg\Validation\ValidationResults;
+use Symfony\Component\Mime\Address;
 
 /**
  * User accounts service
  */
 class Accounts {
-
-	/**
-	 * @var Config
-	 */
-	protected $config;
-
-	/**
-	 * @var Translator
-	 */
-	protected $translator;
-
-	/**
-	 * @var PasswordService
-	 */
-	protected $passwords;
-
-	/**
-	 * @var EventsService
-	 */
-	protected $events;
-	
-	/**
-	 * @var EmailService
-	 */
-	protected $email;
-	
-	/**
-	 * @var PasswordGeneratorService
-	 */
-	protected $password_generator;
 
 	/**
 	 * Constructor
@@ -60,19 +30,13 @@ class Accounts {
 	 * @param PasswordGeneratorService $password_generator Password generator service
 	 */
 	public function __construct(
-		Config $config,
-		Translator $translator,
-		PasswordService $passwords,
-		EventsService $events,
-		EmailService $email,
-		PasswordGeneratorService $password_generator
+		protected Config $config,
+		protected Translator $translator,
+		protected PasswordService $passwords,
+		protected EventsService $events,
+		protected EmailService $email,
+		protected PasswordGeneratorService $password_generator
 	) {
-		$this->config = $config;
-		$this->translator = $translator;
-		$this->passwords = $passwords;
-		$this->events = $events;
-		$this->email = $email;
-		$this->password_generator = $password_generator;
 	}
 
 	/**
@@ -80,7 +44,7 @@ class Accounts {
 	 *
 	 * @param string       $username              The username of the new user
 	 * @param string|array $password              The password
-	 *                                            Can be an array [$password, $oonfirm_password]
+	 *                                            Can be an array [$password, $confirm_password]
 	 * @param string       $name                  The user's display name
 	 * @param string       $email                 The user's email address
 	 * @param bool         $allow_multiple_emails Allow the same email address to be
@@ -89,43 +53,40 @@ class Accounts {
 	 * @return ValidationResults
 	 */
 	public function validateAccountData(string $username, string|array $password, string $name, string $email, bool $allow_multiple_emails = false): ValidationResults {
+		$results = new ValidationResults();
 
-		return elgg_call(ELGG_SHOW_DISABLED_ENTITIES, function () use ($username, $email, $password, $name, $allow_multiple_emails) {
-			$results = new ValidationResults();
+		if (empty($name)) {
+			$error = $this->translator->translate('registration:noname');
+			$results->fail('name', $name, $error);
+		} else {
+			$results->pass('name', $name);
+		}
 
-			if (empty($name)) {
-				$error = $this->translator->translate('registration:noname');
-				$results->fail('name', $name, $error);
-			} else {
-				$results->pass('name', $name);
-			}
+		try {
+			$this->assertValidEmail($email, !$allow_multiple_emails);
 
-			try {
-				$this->assertValidEmail($email, !$allow_multiple_emails);
+			$results->pass('email', $email);
+		} catch (RegistrationException $ex) {
+			$results->fail('email', $email, $ex->getMessage());
+		}
 
-				$results->pass('email', $email);
-			} catch (RegistrationException $ex) {
-				$results->fail('email', $email, $ex->getMessage());
-			}
+		try {
+			$this->assertValidPassword($password);
 
-			try {
-				$this->assertValidPassword($password);
+			$results->pass('password', $password);
+		} catch (RegistrationException $ex) {
+			$results->fail('password', $password, $ex->getMessage());
+		}
 
-				$results->pass('password', $password);
-			} catch (RegistrationException $ex) {
-				$results->fail('password', $password, $ex->getMessage());
-			}
+		try {
+			$this->assertValidUsername($username, true);
 
-			try {
-				$this->assertValidUsername($username, true);
+			$results->pass('username', $username);
+		} catch (RegistrationException $ex) {
+			$results->fail('username', $username, $ex->getMessage());
+		}
 
-				$results->pass('username', $username);
-			} catch (RegistrationException $ex) {
-				$results->fail('username', $username, $ex->getMessage());
-			}
-
-			return $results;
-		});
+		return $results;
 	}
 
 	/**
@@ -160,9 +121,9 @@ class Accounts {
 	 *                      (string) name                  => The user's display name
 	 *                      (string) email                 => The user's email address
 	 *                      (string) subtype               => (optional) Subtype of the user entity
-	 *                      (string) language              => (optional) user language (defaults to current language)
-	 *                      (bool)   allow_multiple_emails => (optional) Allow the same email address to be registered multiple times (default false)
-	 *                      (bool)   validated             => (optional) Is the user validated (default true)
+	 *                      (string) language              => (optional) user language (default: current language)
+	 *                      (bool)   allow_multiple_emails => (optional) Allow the same email address to be registered multiple times (default: false)
+	 *                      (bool)   validated             => (optional) Is the user validated (default: true)
 	 *
 	 * @return \ElggUser
 	 * @throws RegistrationException
@@ -281,7 +242,7 @@ class Accounts {
 		}
 
 		if ($assert_unregistered) {
-			$exists = elgg_call(ELGG_IGNORE_ACCESS | ELGG_SHOW_DISABLED_ENTITIES, function () use ($username) {
+			$exists = elgg_call(ELGG_IGNORE_ACCESS | ELGG_SHOW_DISABLED_ENTITIES | ELGG_SHOW_DELETED_ENTITIES, function () use ($username) {
 				return elgg_get_user_by_username($username);
 			});
 
@@ -342,7 +303,7 @@ class Accounts {
 	}
 
 	/**
-	 * Simple validation of a email.
+	 * Simple validation of an email.
 	 *
 	 * @param string $address             Email address
 	 * @param bool   $assert_unregistered Also assert that the email address has not yet been used for a user account
@@ -367,7 +328,7 @@ class Accounts {
 		}
 
 		if ($assert_unregistered) {
-			$exists = elgg_call(ELGG_IGNORE_ACCESS | ELGG_SHOW_DISABLED_ENTITIES, function () use ($address) {
+			$exists = elgg_call(ELGG_IGNORE_ACCESS | ELGG_SHOW_DISABLED_ENTITIES | ELGG_SHOW_DELETED_ENTITIES, function () use ($address) {
 				return elgg_get_user_by_email($address);
 			});
 
@@ -465,13 +426,13 @@ class Accounts {
 	 * Checks if the authentication failure limit has been reached
 	 *
 	 * @param \ElggUser $user     User to check the limit for
-	 * @param int       $limit    (optional) number of allowed failures
-	 * @param int       $lifetime (optional) number of seconds before a failure is considered expired
+	 * @param int|null  $limit    (optional) number of allowed failures
+	 * @param int|null  $lifetime (optional) number of seconds before a failure is considered expired
 	 *
 	 * @return bool
 	 * @since 4.3
 	 */
-	public function isAuthenticationFailureLimitReached(\ElggUser $user, int $limit = null, int $lifetime = null): bool {
+	public function isAuthenticationFailureLimitReached(\ElggUser $user, ?int $limit = null, ?int $lifetime = null): bool {
 		$limit = $limit ?? $this->config->authentication_failures_limit;
 		$lifetime = $lifetime ?? $this->config->authentication_failures_lifetime;
 		

@@ -1,6 +1,7 @@
 <?php
 
 use Elgg\Application;
+use Elgg\Application\ShutdownHandler;
 use Elgg\Exceptions\ConfigurationException;
 use Elgg\Exceptions\InvalidArgumentException;
 
@@ -31,6 +32,8 @@ class ElggPluginUnitTest extends \Elgg\UnitTestCase {
 		$row->enabled = 'yes';
 		$row->time_created = $plugin->time_created;
 		$row->time_updated = null;
+		$row->deleted = 'no';
+		$row->time_deleted = 0;
 
 		$constructed = new ElggPlugin($row);
 
@@ -123,7 +126,7 @@ class ElggPluginUnitTest extends \Elgg\UnitTestCase {
 
 		foreach ($methods as $method) {
 			$prop = BootstrapPluginTestBootstrap::class . '::' . $method . '_calls';
-			$this->assertEquals(1, $plugin->$prop, "Method $method was called {$plugin->$prop} instead of expected 1 times");
+			$this->assertEquals(1, $plugin->$prop, "Method {$method} was called {$plugin->$prop} instead of expected 1 times");
 		}
 	}
 
@@ -140,8 +143,10 @@ class ElggPluginUnitTest extends \Elgg\UnitTestCase {
 		];
 
 		foreach ($methods as $method) {
+			// need to use getMetadata() because this plugin is disabled
+			// and the magic getter goes through getSetting() which will return null
 			$prop = BootstrapPluginTestBootstrap::class . '::' . $method . '_calls';
-			$this->assertEquals(1, $plugin->$prop, "Method $method was called {$plugin->$prop} instead of expected 1 times");
+			$this->assertEquals(1, $plugin->getMetadata($prop), "Method {$method} was called {$plugin->getMetadata($prop)} instead of expected 1 times");
 		}
 	}
 
@@ -167,7 +172,7 @@ class ElggPluginUnitTest extends \Elgg\UnitTestCase {
 
 		foreach ($methods as $method) {
 			$prop = BootstrapPluginTestBootstrap::class . '::' . $method . '_calls';
-			$this->assertEquals(1, $plugin->$prop, "Method $method was called {$plugin->$prop} instead of expected 1 times");
+			$this->assertEquals(1, $plugin->$prop, "Method {$method} was called {$plugin->$prop} instead of expected 1 times");
 		}
 	}
 
@@ -224,7 +229,7 @@ class ElggPluginUnitTest extends \Elgg\UnitTestCase {
 
 			foreach ($methods as $method) {
 				$prop = BootstrapPluginTestBootstrap::class . '::' . $method . '_calls';
-				$this->assertEquals(1, $plugin->$prop, "Method $method was called {$plugin->$prop} instead of expected 1 times");
+				$this->assertEquals(1, $plugin->$prop, "Method {$method} was called {$plugin->$prop} instead of expected 1 times");
 			}
 
 			$assertions++;
@@ -241,14 +246,29 @@ class ElggPluginUnitTest extends \Elgg\UnitTestCase {
 		};
 
 		$upgrade = _elgg_services()->upgrades->run();
-		$upgrade->done($assert, $fail);
+		$upgrade->then($assert, $fail);
 
 		$this->assertEquals(1, $assertions);
 	}
 
 	public function testUsesBootstrapOnShutdown() {
-		// @todo Test that bootstrap handlers are called during the shutdown event
-		$this->markTestIncomplete();
+		$app = $this->createApplication();
+
+		elgg_set_entity_class('object', 'plugin', \ElggPlugin::class);
+
+		$plugin = \ElggPlugin::fromId('bootstrap_plugin', $this->normalizeTestFilePath('mod/'));
+		$app->internal_services->plugins->addTestingPlugin($plugin);
+
+		$app->bootCore();
+
+		$shutdown = new ShutdownHandler($app);
+		$shutdown();
+
+		$methods = ['shutdown'];
+		foreach ($methods as $method) {
+			$prop = BootstrapPluginTestBootstrap::class . '::' . $method . '_calls';
+			$this->assertEquals(1, $plugin->$prop, "Method {$method} was called {$plugin->$prop} instead of expected 1 times");
+		}
 	}
 	
 	public function testGetVersion() {

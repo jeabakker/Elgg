@@ -4,7 +4,7 @@
  */
 
 use Elgg\Exceptions\Configuration\RegistrationException;
-use Elgg\Exceptions\LoginException;
+use Elgg\Exceptions\Http\LoginException;
 
 $password = (string) get_input('password1', '', false);
 $password_repeat = (string) get_input('password2', '', false);
@@ -23,7 +23,7 @@ if ($password !== $password_repeat) {
 
 $user = get_user($user_guid);
 if (!$user instanceof \ElggUser || !elgg_save_new_password($user, $code, $password)) {
-	return elgg_error_response(elgg_echo('user:password:fail'));
+	return elgg_error_response(elgg_echo('user:changepassword:unknown_user'));
 }
 
 try {

@@ -2,11 +2,20 @@
 
 namespace Elgg\Application;
 
-use Elgg\Notifications\CreateCommentEventHandler;
-use Elgg\Notifications\MentionsEventHandler;
-use Elgg\Notifications\UnbanUserEventHandler;
-use Elgg\Notifications\MakeAdminUserEventHandler;
-use Elgg\Notifications\RemoveAdminUserEventHandler;
+use Elgg\Notifications\Handlers\AddUser;
+use Elgg\Notifications\Handlers\AdminValidation;
+use Elgg\Notifications\Handlers\BanUser;
+use Elgg\Notifications\Handlers\ChangeUserPassword;
+use Elgg\Notifications\Handlers\ConfirmEmailChange;
+use Elgg\Notifications\Handlers\ConfirmPasswordChange;
+use Elgg\Notifications\Handlers\CreateComment;
+use Elgg\Notifications\Handlers\MakeAdminUser;
+use Elgg\Notifications\Handlers\Mentions;
+use Elgg\Notifications\Handlers\RemoveAdminUser;
+use Elgg\Notifications\Handlers\RequestUserPassword;
+use Elgg\Notifications\Handlers\ResetUserPassword;
+use Elgg\Notifications\Handlers\UnbanUser;
+use Elgg\Notifications\Handlers\ValidateUser;
 
 /**
  * Contains the system event handlers
@@ -21,26 +30,25 @@ class SystemEventHandlers {
 	 * @return void
 	 */
 	public static function init() {
-	
-		// searchable
-		elgg_entity_enable_capability('object', 'comment', 'searchable');
-		elgg_entity_enable_capability('user', 'user', 'searchable');
-		
-		// likable
-		elgg_entity_enable_capability('object', 'comment', 'likable');
-		
-		elgg_entity_enable_capability('object', 'comment', 'commentable');
-		
 		elgg_register_notification_method('email');
 		if ((bool) elgg_get_config('enable_delayed_email')) {
 			elgg_register_notification_method('delayed_email');
 		}
 		
-		elgg_register_notification_event('object', 'comment', ['create'], CreateCommentEventHandler::class);
-		elgg_register_notification_event('object', 'comment', ['mentions'], MentionsEventHandler::class);
-		elgg_register_notification_event('user', 'user', ['make_admin'], MakeAdminUserEventHandler::class);
-		elgg_register_notification_event('user', 'user', ['remove_admin'], RemoveAdminUserEventHandler::class);
-		elgg_register_notification_event('user', 'user', ['unban'], UnbanUserEventHandler::class);
+		elgg_register_notification_event('object', 'comment', 'create', CreateComment::class);
+		elgg_register_notification_event('object', 'comment', 'mentions', Mentions::class);
+		elgg_register_notification_event('user', 'user', 'admin_validation', AdminValidation::class);
+		elgg_register_notification_event('user', 'user', 'ban', BanUser::class);
+		elgg_register_notification_event('user', 'user', 'changepassword', ChangeUserPassword::class);
+		elgg_register_notification_event('user', 'user', 'email_change', ConfirmEmailChange::class);
+		elgg_register_notification_event('user', 'user', 'make_admin', MakeAdminUser::class);
+		elgg_register_notification_event('user', 'user', 'password_change', ConfirmPasswordChange::class);
+		elgg_register_notification_event('user', 'user', 'remove_admin', RemoveAdminUser::class);
+		elgg_register_notification_event('user', 'user', 'requestnewpassword', RequestUserPassword::class);
+		elgg_register_notification_event('user', 'user', 'resetpassword', ResetUserPassword::class);
+		elgg_register_notification_event('user', 'user', 'unban', UnbanUser::class);
+		elgg_register_notification_event('user', 'user', 'useradd', AddUser::class);
+		elgg_register_notification_event('user', 'user', 'validate', ValidateUser::class);
 		
 		// if mb functions are available, set internal encoding to UTF8
 		if (is_callable('mb_internal_encoding')) {
@@ -50,10 +58,14 @@ class SystemEventHandlers {
 		elgg_register_ajax_view('admin/users/listing/details');
 		elgg_register_ajax_view('core/ajax/edit_comment');
 		elgg_register_ajax_view('forms/admin/user/change_email');
+		elgg_register_ajax_view('forms/comment/save');
+		elgg_register_ajax_view('forms/entity/chooserestoredestination');
 		elgg_register_ajax_view('navigation/menu/user_hover/contents');
 		elgg_register_ajax_view('notifications/subscriptions/details');
 		elgg_register_ajax_view('object/plugin/details');
+		elgg_register_ajax_view('object/widget/edit');
 		elgg_register_ajax_view('page/elements/comments');
+		elgg_register_ajax_view('page/layouts/widgets/add_panel');
 		elgg_register_ajax_view('river/elements/responses');
 		
 		elgg_extend_view('admin.css', 'lightbox/elgg-colorbox-theme/colorbox.css');
@@ -61,8 +73,8 @@ class SystemEventHandlers {
 		elgg_extend_view('core/settings/statistics', 'core/settings/statistics/numentities');
 		elgg_extend_view('forms/usersettings/save', 'core/settings/account/username', 100);
 		elgg_extend_view('forms/usersettings/save', 'core/settings/account/name', 100);
-		elgg_extend_view('forms/usersettings/save', 'core/settings/account/password', 100);
 		elgg_extend_view('forms/usersettings/save', 'core/settings/account/email', 100);
+		elgg_extend_view('forms/usersettings/save', 'core/settings/account/password', 100);
 		elgg_extend_view('forms/usersettings/save', 'core/settings/account/language', 100);
 		elgg_extend_view('forms/usersettings/save', 'core/settings/account/default_access', 100);
 		
@@ -94,11 +106,6 @@ class SystemEventHandlers {
 	 */
 	public static function initEarly() {
 		elgg_register_pam_handler(\Elgg\PAM\User\Password::class);
-		
-		// @todo registering an alias helps in the transition from Elgg 4 to Elgg 5. This can be removed in Elgg 6
-		if (!class_exists('Elgg\Hook')) {
-			class_alias(\Elgg\Event::class, 'Elgg\Hook');
-		}
 	}
 	
 	/**
@@ -116,7 +123,7 @@ class SystemEventHandlers {
 	 * @return void
 	 */
 	public static function ready() {
-		_elgg_services()->systemCache->init();
+		_elgg_services()->views->cacheConfiguration();
 	}
 	
 	/**

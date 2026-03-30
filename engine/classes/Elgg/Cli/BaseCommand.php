@@ -72,68 +72,17 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command {
 	}
 
 	/**
-	 * Dump a variable
-	 *
-	 * @param mixed $data Data to dump
-	 *
-	 * @return void
-	 */
-	final public function dump($data) {
-		VarDumper::dump($data);
-	}
-
-	/**
 	 * Write messages to output buffer
 	 *
 	 * @param string|array $messages Data or messages
-	 * @param string       $level    Logging level/servity
+	 * @param string       $style    Output style
 	 *
 	 * @return void
 	 */
-	final public function write($messages, $level = LogLevel::INFO) {
+	final public function write($messages, $style = 'info'): void {
 		$formatter = new FormatterHelper();
-
-		switch ($level) {
-			case LogLevel::EMERGENCY:
-			case LogLevel::CRITICAL:
-			case LogLevel::ALERT:
-			case LogLevel::ERROR:
-				$style = 'error';
-				break;
-
-			case LogLevel::WARNING:
-				$style = 'comment';
-				break;
-
-			default:
-				$style = 'info';
-				break;
-		}
-
 		$message = $formatter->formatBlock($messages, $style);
 		$this->output->writeln($message);
-	}
-
-	/**
-	 * Print an error
-	 *
-	 * @param string $message Error message
-	 *
-	 * @return void
-	 */
-	public function error($message) {
-		$this->write($message, LogLevel::ERROR);
-	}
-
-	/**
-	 * Print a notce
-	 *
-	 * @param string $message Error message
-	 *
-	 * @return void
-	 */
-	public function notice($message) {
-		$this->write($message, LogLevel::NOTICE);
 	}
 
 	/**
@@ -184,7 +133,7 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command {
 		foreach ($registers as $prop => $values) {
 			if (!empty($values)) {
 				foreach ($values as $msg) {
-					$prop == 'error' ? $this->error($msg) : $this->notice($msg);
+					$prop === 'error' ? $this->write($msg, 'error') : $this->write($msg);
 				}
 			}
 		}

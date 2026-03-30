@@ -6,13 +6,12 @@
  */
 
 return array(
-
 	/**
 	 * Menu items and titles
 	 */
-
 	'item:object:page' => 'Strony',
 	'collection:object:page' => 'Strony',
+	
 	'collection:object:page:all' => "Wszystkie strony",
 	'collection:object:page:owner' => "Strony użytkownika %s",
 	'collection:object:page:friends' => "Strony znajomych",
@@ -31,7 +30,6 @@ return array(
 	'pages:notify:subject' => "Nowa strona: %s",
 
 	'pages:more' => 'Więcej stron',
-	'pages:none' => 'Nie utworzono jeszcze stron',
 
 	/**
 	* River

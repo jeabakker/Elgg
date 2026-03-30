@@ -9,7 +9,7 @@ return [
 		[
 			'type' => 'object',
 			'subtype' => 'reported_content',
-			'class' => 'ElggReportedContent',
+			'class' => \ElggReportedContent::class,
 			'capabilities' => [
 				'commentable' => true,
 			],
@@ -45,6 +45,11 @@ return [
 				'Elgg\ReportedContent\Notifications\PreventCommentNotification' => [],
 			],
 		],
+		'entity:url' => [
+			'object:widget' => [
+				'Elgg\ReportedContent\Widgets::reportedcontentWidgetURL' => [],
+			],
+		],
 		'register' => [
 			'menu:admin_header' => [
 				'Elgg\ReportedContent\Menus\AdminHeader::register' => [],
@@ -66,7 +71,9 @@ return [
 	'notifications' => [
 		'object' => [
 			'reported_content' => [
-				'create' => \Elgg\ReportedContent\Notifications\CreateReportedContentNotificationHandler::class,
+				'create' => [
+					\Elgg\ReportedContent\Notifications\CreateReportedContentNotificationHandler::class => [],
+				],
 			],
 		],
 	],

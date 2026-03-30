@@ -6,13 +6,12 @@
  */
 
 return array(
-
 	/**
 	 * Menu items and titles
 	 */
-
 	'item:object:page' => 'Sider',
 	'collection:object:page' => 'Sider',
+	
 	'collection:object:page:all' => "Alle sider",
 	'collection:object:page:owner' => "%s's sider",
 	'collection:object:page:friends' => "Venners sider",
@@ -23,12 +22,12 @@ return array(
 	'groups:tool:pages' => 'Aktiver gruppe sider',
 
 	'pages:history' => "Sidehistorik",
+	'pages:revision' => "Revision",
 
 	'pages:notify:summary' => 'Ny side kaldt %s',
 	'pages:notify:subject' => "En ny side: %s",
 
 	'pages:more' => 'Flere sider',
-	'pages:none' => 'Der er ikke oprettet sider endnu',
 
 	/**
 	* River
@@ -40,6 +39,7 @@ return array(
 
 	'pages:title' => 'Side titel',
 	'pages:description' => 'Side indhold',
+	'pages:tags' => 'Tags',
 
 	/**
 	 * Status and error messages

@@ -6,13 +6,12 @@
  */
 
 return array(
-
+	'list:annotation:messageboard:no_results' => 'Geen berichten gevonden',
+	
 	/**
 	 * Menu items and titles
 	 */
-
 	'messageboard:board' => "Berichtenbox",
-	'messageboard:none' => "Er zijn nog geen berichten geplaatst",
 	'messageboard:num_display' => "Aantal berichten om weer te geven",
 	'messageboard:owner' => 'Berichtenbox van %s',
 	'messageboard:owner_history' => 'Berichten van %s in de berichtenbox van %s',

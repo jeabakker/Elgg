@@ -6,17 +6,16 @@
  */
 
 return array(
-
 	'item:object:file' => 'File',
-	
 	'collection:object:file' => 'File',
+	
 	'collection:object:file:all' => "Tutti i file",
 	'collection:object:file:owner' => "File di %s",
 	'collection:object:file:friends' => "File degli amici",
 	'collection:object:file:group' => "File del gruppo",
 	'add:object:file' => "Carica un file",
 	'edit:object:file' => "Modifica file",
-
+	
 	'file:more' => "Più file",
 	'file:list' => "vista a elenco",
 
@@ -68,7 +67,6 @@ return array(
 	 * Error messages
 	 */
 
-	'file:none' => "Nessun file caricato.",
 	'file:uploadfailed' => "Impossibile salvare il file.",
 	'file:noaccess' => "Permessi insufficienti per modificare questo file",
 	'file:cannotload' => "Si è verificato un errore durante il caricamento del file",

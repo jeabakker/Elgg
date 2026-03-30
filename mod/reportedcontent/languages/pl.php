@@ -7,12 +7,12 @@
 
 return array(
 	'item:object:reported_content' => 'Zgłoszone elementy',
+	
 	'admin:administer_utilities:reportedcontent' => 'Zgłoszona treść',
 	
 	'reportedcontent' => 'Zgłoszona treść',
 	'reportedcontent:this' => 'Zgłoś to',
 	'reportedcontent:this:tooltip' => 'Zgłoś tą stronę administratorowi',
-	'reportedcontent:none' => 'Nie ma zgłoszonej treści',
 	'reportedcontent:report' => 'Zgłoś administratorowi',
 	'reportedcontent:archive' => 'Archiwizuj zgłoszenie',
 	'reportedcontent:archived' => 'Zgłoszenie zostało zarchiwizowane',

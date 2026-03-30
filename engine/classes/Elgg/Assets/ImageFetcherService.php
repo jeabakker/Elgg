@@ -17,26 +17,11 @@ use GuzzleHttp\RequestOptions;
 class ImageFetcherService {
 
 	protected const CACHE_PREFIX = 'image_fetcher_';
-
-	/**
-	 * @var SystemCache
-	 */
-	protected $cache;
 	
 	/**
 	 * @var \Elgg\Http\Client
 	 */
 	protected $client;
-
-	/**
-	 * @var Config
-	 */
-	protected $config;
-
-	/**
-	 * @var \ElggSession
-	 */
-	protected $session;
 	
 	/**
 	 * Constructor
@@ -45,11 +30,11 @@ class ImageFetcherService {
 	 * @param SystemCache  $cache   the system cache
 	 * @param \ElggSession $session the current session
 	 */
-	public function __construct(Config $config, SystemCache $cache, \ElggSession $session) {
-		$this->config = $config;
-		$this->cache = $cache;
-		$this->session = $session;
-		
+	public function __construct(
+		protected Config $config,
+		protected SystemCache $cache,
+		protected \ElggSession $session
+	) {
 		$this->client = elgg_get_http_client();
 	}
 	
@@ -81,7 +66,7 @@ class ImageFetcherService {
 		$site = elgg_get_site_entity();
 		$options = [];
 		
-		if (stripos($image_url, $site->getURL()) === 0) {
+		if (str_starts_with($image_url, $site->getURL())) {
 			// internal url, can use session cookie
 			$cookie_config = $this->config->getCookieConfig();
 			

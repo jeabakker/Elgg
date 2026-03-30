@@ -1,9 +1,7 @@
 <?php
 
-use Elgg\Router\Middleware\Gatekeeper;
+use Elgg\TheWire\Controllers\ContentListing;
 use Elgg\TheWire\Notifications\CreateTheWireEventHandler;
-
-require_once(__DIR__ . '/lib/functions.php');
 
 return [
 	'plugin' => [
@@ -14,9 +12,9 @@ return [
 		[
 			'type' => 'object',
 			'subtype' => 'thewire',
-			'class' => 'ElggWire',
+			'class' => \ElggWire::class,
 			'capabilities' => [
-				'commentable' => false,
+				'river_emittable' => true,
 				'searchable' => true,
 				'likable' => true,
 			],
@@ -26,28 +24,42 @@ return [
 		'limit' => 140,
 	],
 	'actions' => [
-		'thewire/add' => [],
-		'thewire/delete' => [],
+		'thewire/add' => [
+			'controller' => \Elgg\TheWire\Controllers\EditAction::class,
+			'options' => [
+				'entity_type' => 'object',
+				'entity_subtype' => 'thewire',
+			],
+		],
 	],
 	'routes' => [
 		'default:object:thewire' => [
 			'path' => '/thewire',
-			'resource' => 'thewire/all',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'thewire/sidebar',
+			],
 		],
 		'collection:object:thewire:all' => [
 			'path' => '/thewire/all',
-			'resource' => 'thewire/all',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'thewire/sidebar',
+			],
 		],
 		'collection:object:thewire:owner' => [
 			'path' => '/thewire/owner/{username}',
-			'resource' => 'thewire/owner',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'thewire/sidebar',
+			],
 			'middleware' => [
 				\Elgg\Router\Middleware\UserPageOwnerGatekeeper::class,
 			],
 		],
 		'collection:object:thewire:friends' => [
 			'path' => '/thewire/friends/{username}',
-			'resource' => 'thewire/friends',
+			'controller' => ContentListing::class,
 			'required_plugins' => [
 				'friends',
 			],
@@ -57,19 +69,20 @@ return [
 		],
 		'collection:object:thewire:thread' => [
 			'path' => '/thewire/thread/{guid}',
-			'resource' => 'thewire/thread',
-			'middleware' => [
-				\Elgg\Router\Middleware\PageOwnerGatekeeper::class,
-			],
+			'controller' => ContentListing::class,
 		],
 		'collection:object:thewire:tag' => [
 			'path' => '/thewire/tag/{tag}',
-			'resource' => 'thewire/tag',
+			'controller' => ContentListing::class,
 		],
 		'collection:object:thewire:mentions' => [
 			'path' => '/thewire/mentions/{username}',
-			'resource' => 'thewire/mentions',
+			'controller' => ContentListing::class,
+			'options' => [
+				'sidebar_view' => 'thewire/sidebar',
+			],
 			'middleware' => [
+				\Elgg\Router\Middleware\Gatekeeper::class,
 				\Elgg\Router\Middleware\UserPageOwnerCanEditGatekeeper::class,
 			],
 		],
@@ -81,7 +94,7 @@ return [
 			'path' => '/thewire/reply/{guid}',
 			'resource' => 'thewire/reply',
 			'middleware' => [
-				Gatekeeper::class,
+				\Elgg\Router\Middleware\Gatekeeper::class,
 				\Elgg\Router\Middleware\PageOwnerGatekeeper::class,
 			],
 		],
@@ -92,6 +105,16 @@ return [
 		],
 	],
 	'events' => [
+		'entity:url' => [
+			'object:widget' => [
+				'Elgg\TheWire\Widgets::thewireWidgetURL' => [],
+			],
+		],
+		'prepare' => [
+			'html' => [
+				'Elgg\TheWire\Views::parseTags' => [],
+			],
+		],
 		'register' => [
 			'menu:entity' => [
 				'Elgg\TheWire\Menus\Entity::register' => [],
@@ -115,8 +138,12 @@ return [
 	'notifications' => [
 		'object' => [
 			'thewire' => [
-				'create' => CreateTheWireEventHandler::class,
-				'mentions' => \Elgg\Notifications\MentionsEventHandler::class,
+				'create' => [
+					CreateTheWireEventHandler::class => [],
+				],
+				'mentions' => [
+					\Elgg\Notifications\Handlers\Mentions::class => [],
+				],
 			],
 		],
 	],

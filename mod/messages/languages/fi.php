@@ -49,7 +49,6 @@ return array(
 	*/
 
 	'messages:blank' => "Syötä viestiin jotakin sisältöä ennen lähettämistä.",
-	'messages:nomessages' => "Ei viestejä.",
 	'messages:user:nonexist' => "Valitsemaasi vastaanottajaa ei löytynyt käyttäjärekisteristä.",
 	'messages:user:blank' => "Et valinnut viestille vastaanottajaa.",
 	'messages:user:self' => "Et voi lähettää viestiä itsellesi.",

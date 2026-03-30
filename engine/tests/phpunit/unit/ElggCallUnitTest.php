@@ -1,12 +1,11 @@
 <?php
 
 use Elgg\Exceptions\RuntimeException as ElggRuntimeException;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ElggCallUnitTest extends \Elgg\UnitTestCase {
 
-	/**
-	 * @dataProvider flagsDataProvider
-	 */
+	#[DataProvider('flagsDataProvider')]
 	public function testCanCallWithFlags($access_before, $disabled_before, $ignore_access, $show_disabled) {
 
 		$ia = elgg()->session_manager->setIgnoreAccess($access_before);
@@ -69,7 +68,7 @@ class ElggCallUnitTest extends \Elgg\UnitTestCase {
 		elgg()->session_manager->setDisabledEntityVisibility($ha);
 	}
 
-	public function flagsDataProvider() {
+	public static function flagsDataProvider() {
 		return [
 			[false, false, false, false],
 			[false, false, false, true],

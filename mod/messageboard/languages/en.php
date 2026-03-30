@@ -6,13 +6,12 @@
  */
 
 return array(
-
+	'list:annotation:messageboard:no_results' => 'No messages found',
+	
 	/**
 	 * Menu items and titles
 	 */
-
 	'messageboard:board' => "Message board",
-	'messageboard:none' => "There is nothing on this message board yet",
 	'messageboard:num_display' => "Number of messages to display",
 	'messageboard:owner' => '%s\'s message board',
 	'messageboard:owner_history' => '%s\'s posts on %s\'s message board',

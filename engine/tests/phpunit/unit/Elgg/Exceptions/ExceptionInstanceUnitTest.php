@@ -4,12 +4,11 @@ namespace Elgg\Exceptions;
 
 use Elgg\Project\Paths;
 use Elgg\UnitTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ExceptionInstanceUnitTest extends UnitTestCase {
 	
-	/**
-	 * @dataProvider exceptionProvider
-	 */
+	#[DataProvider('exceptionProvider')]
 	public function testImplementsInterface($exception_class) {
 		if (!class_exists($exception_class)) {
 			// could be an interface
@@ -20,7 +19,7 @@ class ExceptionInstanceUnitTest extends UnitTestCase {
 		$this->assertInstanceOf('\Elgg\Exceptions\ExceptionInterface', $exception);
 	}
 	
-	public function exceptionProvider() {
+	public static function exceptionProvider() {
 		$result = [];
 		$path = Paths::elgg() . 'engine/classes/Elgg/Exceptions/';
 		$path = Paths::sanitize($path);

@@ -58,9 +58,7 @@ $list = elgg_list_entities([
 ]);
 
 if (empty($list)) {
-	echo elgg_view('page/components/no_results', [
-		'no_results' => elgg_echo('notifications:subscriptions:no_results'),
-	]);
+	echo elgg_view_no_results(elgg_echo('notifications:subscriptions:no_results'));
 	return;
 }
 
@@ -69,7 +67,7 @@ echo $list;
 // form footer
 $footer = elgg_view_field([
 	'#type' => 'submit',
-	'value' => elgg_echo('save'),
+	'text' => elgg_echo('save'),
 ]);
 
 elgg_set_form_footer($footer);

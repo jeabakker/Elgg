@@ -1,33 +1,26 @@
 <?php
-/**
- * History of revisions of a page
- */
+use Elgg\Database\Clauses\OrderByClause;
 
-$page_guid = (int) elgg_extract('guid', $vars);
+$guid = (int) elgg_extract('guid', $vars);
 
-elgg_entity_gatekeeper($page_guid, 'object', 'page', true);
+/** @var \ElggPage $entity */
+$entity = elgg_entity_gatekeeper($guid, 'object', 'page', true);
 
-$page = get_entity($page_guid);
+elgg_push_collection_breadcrumbs('object', 'page', elgg_get_page_owner_entity());
 
-$container = elgg_get_page_owner_entity();
+pages_prepare_parent_breadcrumbs($entity);
 
-elgg_push_collection_breadcrumbs('object', 'page', $container);
-
-pages_prepare_parent_breadcrumbs($page);
-
-elgg_push_breadcrumb($page->getDisplayName(), $page->getURL());
-
-$title = "{$page->getDisplayName()}: " . elgg_echo('pages:history');
+$title = "{$entity->getDisplayName()}: " . elgg_echo('pages:history');
 
 $content = elgg_list_annotations([
-	'guid' => $page_guid,
+	'guid' => $guid,
 	'annotation_name' => 'page',
 	'limit' => max(20, elgg_get_config('default_limit')),
 	'order_by' => [
-		new \Elgg\Database\Clauses\OrderByClause('n_table.time_created', 'desc'),
-		new \Elgg\Database\Clauses\OrderByClause('n_table.id', 'desc'),
+		new OrderByClause('a_table.time_created', 'desc'),
+		new OrderByClause('a_table.id', 'desc'),
 	],
-	'no_results' => elgg_echo('pages:none'),
+	'no_results' => elgg_echo('list:object:page:no_results'),
 ]);
 
 echo elgg_view_page($title, [

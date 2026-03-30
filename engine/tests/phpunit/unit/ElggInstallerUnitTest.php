@@ -30,7 +30,7 @@ class ElggInstallerUnitTest extends \Elgg\UnitTestCase {
 			->getMock();
 		
 		foreach ($methods as $method => $callback) {
-			$mock->method($method)->will($this->returnCallback($callback));
+			$mock->method($method)->willReturnCallback($callback);
 		}
 		
 		return $mock;
@@ -51,6 +51,7 @@ class ElggInstallerUnitTest extends \Elgg\UnitTestCase {
 		$config->simplecache_enabled = false;
 		$config->lastcache = time();
 		$config->wwwroot = getenv('ELGG_WWWROOT') ?: 'http://localhost/';
+		$config->testing_mode = true;
 
 		$services = InternalContainer::factory(['config' => $config]);
 
@@ -66,7 +67,7 @@ class ElggInstallerUnitTest extends \Elgg\UnitTestCase {
 		$this->app = $app;
 
 		$this->app->internal_services->views->setViewtype('installation');
-		$this->app->internal_services->views->registerPluginViews(Paths::elgg());
+		$this->app->internal_services->views->registerViewsFromPath(Paths::elgg());
 		$this->app->internal_services->translator->registerTranslations(Paths::elgg() . "install/languages/", true);
 
 		return $this->app;
@@ -85,7 +86,7 @@ class ElggInstallerUnitTest extends \Elgg\UnitTestCase {
 	}
 
 	public function createSettingsFile() {
-		$template = Application::elggDir()->getContents("elgg-config/settings.example.php");
+		$template = file_get_contents(Paths::elgg() . "elgg-config/settings.example.php");
 
 		$params = [
 			'dbprefix' => getenv('ELGG_DB_PREFIX') !== false ? getenv('ELGG_DB_PREFIX') : 'c_i_elgg_',
@@ -508,7 +509,7 @@ class ElggInstallerUnitTest extends \Elgg\UnitTestCase {
 					'type' => 'password',
 					'value' => '',
 					'required' => true,
-					'pattern' => '.{6,}',
+					'pattern' => '.{16,}',
 				],
 				'password2' => [
 					'type' => 'password',
@@ -564,8 +565,8 @@ class ElggInstallerUnitTest extends \Elgg\UnitTestCase {
 			'displayname' => 'admin user',
 			'email' => 'admin@example.com',
 			'username' => 'admin',
-			'password1' => '12345678',
-			'password2' => '12345678',
+			'password1' => '12345678abcdefgh',
+			'password2' => '12345678abcdefgh',
 		]);
 
 		$this->getApp()->internal_services->set('request', $request);
@@ -613,7 +614,7 @@ class ElggInstallerUnitTest extends \Elgg\UnitTestCase {
 			'displayname' => 'Administrator',
 			'email' => 'admin@ci.elgg.org',
 			'username' => 'admin',
-			'password' => 'fancypassword',
+			'password' => 'longenoughpassword',
 
 			// timezone
 			'timezone' => 'UTC',
