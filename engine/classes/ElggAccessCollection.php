@@ -103,31 +103,15 @@ class ElggAccessCollection extends ElggData {
 	 * @return string
 	 */
 	public function getDisplayName(): string {
-
-		$filter = function($name = null) {
-			if (!isset($name)) {
-				$name = _elgg_services()->translator->translate('access:limited:label');
-			}
-			
-			$params = [
-				'access_collection' => $this,
-			];
-			return (string) _elgg_services()->events->triggerResults('access_collection:name', $this->getType(), $params, $name);
-		};
-
-		$user = _elgg_services()->session_manager->getLoggedInUser();
-		$owner = $this->getOwnerEntity();
-		if (!$user || !$owner) {
-			// User is not logged in or does not access to the owner entity:
-			// return default 'Limited' label
-			return $filter();
+		$name = $this->name;
+		if (!isset($name) || !$this->canEdit()) {
+			$name = _elgg_services()->translator->translate('access:limited:label');
 		}
 		
-		if ($user->isAdmin() || $owner->guid == $user->guid) {
-			return $filter($this->name);
-		}
-
-		return $filter();
+		$params = [
+			'access_collection' => $this,
+		];
+		return (string) _elgg_services()->events->triggerResults('access_collection:name', $this->getType(), $params, $name);
 	}
 
 	/**

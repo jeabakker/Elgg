@@ -323,6 +323,15 @@ class AccessCollections {
 	 * @return bool
 	 */
 	public function canEdit(int $collection_id, ?int $user_guid = null): bool {
+		$collection = $this->get($collection_id);
+		if (!$collection instanceof \ElggAccessCollection) {
+			return false;
+		}
+
+		if ($this->capabilities->canBypassPermissionsCheck($user_guid ?? 0)) {
+			return true;
+		}
+
 		try {
 			$user = $this->entities->getUserForPermissionsCheck($user_guid);
 		} catch (UserFetchFailureException $e) {
@@ -333,15 +342,6 @@ class AccessCollections {
 			return false;
 		}
 		
-		$collection = $this->get($collection_id);
-		if (!$collection instanceof \ElggAccessCollection) {
-			return false;
-		}
-
-		if ($this->capabilities->canBypassPermissionsCheck($user->guid)) {
-			return true;
-		}
-
 		$write_access = $this->getWriteAccessArray($user->guid, true);
 		return array_key_exists($collection_id, $write_access);
 	}
